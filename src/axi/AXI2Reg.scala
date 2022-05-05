@@ -7,7 +7,7 @@ import common._
 import common.storage._
 import common.ToZero
 
-class AXI2Reg[T<:AXI](private val gen:T, depth:Int, width:Int, enable_ila:Int=0) extends Module{
+class AXI2Reg[T<:AXI](private val gen:T, depth:Int, width:Int) extends Module{
 	require(width%8 == 0)
 	val genType = if (compileOptions.declaredTypeMustBeUnbound) {
 		requireIsChiselType(gen)
@@ -87,32 +87,5 @@ class AXI2Reg[T<:AXI](private val gen:T, depth:Int, width:Int, enable_ila:Int=0)
 	}
 	q_r.io.in.bits.data	:= reg_control(addr_r+offset_r)
 	q_r.io.in.bits.last	:= is_last
-
-	if(enable_ila == 1){
-		class ila_axi2reg(seq:Seq[Data]) extends BaseILA(seq)
-		val mod2 = Module(new ila_axi2reg(Seq(
-			q_aw.io.out.valid,
-			q_aw.io.out.ready,
-			q_aw.io.out.bits.addr,
-			offset_w,
-			io.axi.w.valid,
-			io.axi.w.ready,
-			io.axi.w.bits.data,
-			io.axi.w.bits.last,
-			io.axi.w.bits.strb,
-		)))
-		mod2.connect(clock)
-
-		class ila_ar(seq:Seq[Data]) extends BaseILA(seq)
-		val mod3 = Module(new ila_ar(Seq(
-			q_ar.io.out.valid,
-			q_ar.io.out.ready,
-			q_ar.io.out.bits.addr,
-			io.axi.r.valid,
-			io.axi.r.ready,
-			io.axi.r.bits.data,
-		)))
-		mod3.connect(clock)
-	}
 	
 }

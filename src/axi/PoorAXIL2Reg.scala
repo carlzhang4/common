@@ -7,7 +7,7 @@ import common._
 import common.storage._
 import common.ToZero
 
-class PoorAXIL2Reg[T<:AXI](private val gen:T, depth:Int, width:Int, enable_ila:Int=0) extends Module{
+class PoorAXIL2Reg[T<:AXI](private val gen:T, depth:Int, width:Int) extends Module{
 	val shift = Math.log2(width/8)
 	val io = IO(new Bundle{
 		val axi = Flipped(gen)	
@@ -79,35 +79,5 @@ class PoorAXIL2Reg[T<:AXI](private val gen:T, depth:Int, width:Int, enable_ila:I
 				s_wr			:= sIDLE
 			}
 		}
-	}
-
-	if(enable_ila == 1){
-		class ila_wr(seq:Seq[Data]) extends BaseILA(seq)
-		val mod2 = Module(new ila_wr(Seq(
-			io.axi.aw.valid,
-			io.axi.aw.ready,
-			io.axi.aw.bits.addr,
-			io.axi.w.valid,
-			io.axi.w.ready,
-			io.axi.w.bits.data,
-			io.axi.w.bits.last,
-			io.axi.w.bits.strb,
-			w_addr,
-			s_wr,
-		)))
-		mod2.connect(clock)
-
-		class ila_rd(seq:Seq[Data]) extends BaseILA(seq)
-		val mod3 = Module(new ila_rd(Seq(
-			io.axi.ar.valid,
-			io.axi.ar.ready,
-			io.axi.ar.bits.addr,
-			io.axi.r.valid,
-			io.axi.r.ready,
-			io.axi.r.bits.data,
-			r_addr,
-			s_rd,
-		)))
-		mod3.connect(clock)
 	}
 }

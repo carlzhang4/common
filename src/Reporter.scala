@@ -4,7 +4,7 @@ import chisel3._
 import chisel3.util._
 import chisel3.util.experimental.BoringUtils
 
-object Reporter{
+abstract class Reporter{
 	def MAX_NUM = 32
 	var msgs = new Array[String](MAX_NUM)
 	var cur_idx = 0
