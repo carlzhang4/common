@@ -248,3 +248,10 @@ object Connect_AXI{
 		raw_axi.bready		<> axi.b.ready
 	}
 }
+
+
+class AXIS(val DATA_WIDTH:Int)extends Bundle{
+	val data = UInt(DATA_WIDTH.W)
+	val keep = UInt((DATA_WIDTH/8).W)
+	val last = UInt(1.W)
+}

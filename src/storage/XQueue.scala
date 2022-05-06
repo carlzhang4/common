@@ -26,14 +26,15 @@ object XQueue{
 		Seq.fill(num)(Module(new XQueue(gen,entries,2)))
 	}
 
-	def apply[T<:Data](gen: T, entries:Int, almostfull_threshold:Int=2) = {
-		Module(new XQueue(gen,entries,almostfull_threshold))
+	def apply[T<:Data](gen: T, entries:Int, almostfull_threshold:Int=2, packet_fifo:String="false") = {
+		Module(new XQueue(gen,entries,almostfull_threshold,packet_fifo))
 	}
 
 	class XQueue[T<:Data](
 		val gen:T,
 		val entries:Int,
-		val almostfull_threshold:Int=2
+		val almostfull_threshold:Int=2, 
+		val packet_fifo:String="false"
 	)extends Module(){
 		require(entries >= 1, "XQueue must has positive entries")
 		require(entries <= 4096, "XQueue out of range")
@@ -52,7 +53,7 @@ object XQueue{
 		if(entries > 32){
 			val width = Math.round_up((genType.getWidth),8)
 
-			val fifo = Module(new SV_STREAM_FIFO(width,log2Up(entries),"auto","common_clock"))
+			val fifo = Module(new SV_STREAM_FIFO(width,log2Up(entries),"auto","common_clock",packet_fifo))
 
 			fifo.io.s_clk		<> clock
 			fifo.io.m_clk		<> clock

@@ -9,6 +9,7 @@ class SV_STREAM_FIFO(
 	DEPTH_BIT:Int,
 	RAM_TYPE:String,
 	CLOCKING_MODE:String,
+	PACKET_FIFO:String,
 ) extends RawModule{
 	val io = IO(new Bundle{
 		val m_clk				= Input(Clock())
@@ -26,7 +27,7 @@ class SV_STREAM_FIFO(
 		val wr_count			= Output(UInt((DEPTH_BIT+1).W))
 	})
 
-	val meta = Module(new xpm_fifo_axis(DATA_WIDTH,DEPTH_BIT+1,RAM_TYPE,CLOCKING_MODE))
+	val meta = Module(new xpm_fifo_axis(DATA_WIDTH,DEPTH_BIT+1,RAM_TYPE,CLOCKING_MODE,PACKET_FIFO))
 	meta.io.m_axis_tdata		<> io.out_data
 	meta.io.m_axis_tvalid		<> io.out_valid
 	meta.io.rd_data_count_axis	<> io.rd_count
@@ -52,6 +53,7 @@ class xpm_fifo_axis(
 	DEPTH_BIT_PULS_ONE:Int,
 	RAM_TYPE:String,
 	CLOCKING_MODE:String,
+	PACKET_FIFO:String,
 ) extends BlackBox(Map(
 	"CASCADE_HEIGHT" 			-> 0,
 	"CDC_SYNC_STAGES" 			-> 2,
@@ -59,7 +61,7 @@ class xpm_fifo_axis(
 	"ECC_MODE" 					-> "no_ecc",
 	"FIFO_DEPTH" 				-> Math.pow2(DEPTH_BIT_PULS_ONE-1),
 	"FIFO_MEMORY_TYPE" 			-> RAM_TYPE,
-	"PACKET_FIFO" 				-> "false",
+	"PACKET_FIFO" 				-> PACKET_FIFO,
 	"PROG_EMPTY_THRESH" 		-> 10,
 	"PROG_FULL_THRESH" 			-> 10,
 	"RD_DATA_COUNT_WIDTH" 		-> DEPTH_BIT_PULS_ONE,
@@ -75,6 +77,8 @@ class xpm_fifo_axis(
 	val io = IO(new Bundle{
 
 		val m_axis_tdata		= Output(UInt(DATA_WIDTH.W))
+		val m_axis_tkeep		= Output(UInt((DATA_WIDTH/8).W))
+		val m_axis_tlast		= Output(UInt(1.W))
 		val m_axis_tvalid		= Output(UInt(1.W))
 		val rd_data_count_axis	= Output(UInt(DEPTH_BIT_PULS_ONE.W))
 		val s_axis_tready		= Output(UInt(1.W))

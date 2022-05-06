@@ -52,7 +52,7 @@ object XConverter{
 
 		val width = Math.round_up((genType.getWidth),8)
 
-		val fifo = Module(new SV_STREAM_FIFO(width,log2Up(entries),"auto","independent_clock"))
+		val fifo = Module(new SV_STREAM_FIFO(width,log2Up(entries),"auto","independent_clock","false"))
 
 		fifo.io.s_clk		<> io.in_clk
 		fifo.io.m_clk		<> io.out_clk
