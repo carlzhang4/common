@@ -4,13 +4,13 @@ import chisel3._
 import chisel3.util._
 import chisel3.util.experimental.BoringUtils
 
-abstract class Reporter{
+abstract class Reporter(unique_prefix:String="default"){
 	def MAX_NUM = 32
 	var msgs = new Array[String](MAX_NUM)
 	var cur_idx = 0
 
 	def report(cond:Bool,msg:String)={
-		val unique_id = "report_"+cur_idx.toString
+		val unique_id = unique_prefix+"_report_"+cur_idx.toString
 		BoringUtils.addSource(cond,unique_id,true,true)
 		msgs(cur_idx) = msg
 		cur_idx = cur_idx + 1
@@ -21,7 +21,7 @@ abstract class Reporter{
 
 	def get_reports(sigs:Seq[Bool])={
 		for(i<-0 until cur_idx){
-			val unique_id = "report_"+i.toString
+			val unique_id = unique_prefix+"_report_"+i.toString
 			BoringUtils.addSink(sigs(i),unique_id)
 		}
 	}
