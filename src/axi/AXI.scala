@@ -86,6 +86,50 @@ class AXI(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int, LEN_WIDT
 		// b.bits.resp			:= 3.U
 	}
 
+
+	/* User notes:
+	 *	
+	 * When using HBM, following signals could be considered:
+	 * <id> bits: 	Used for transaction reordering, normally set to 0.
+	 * 				Note: If RAMA is used, this signal should be set to 0.
+	 * <addr> bits:	Address in HBM to visit.
+	 * <len> bits:	Zero based value. Beats to transfer data (i.e. 0 stands for 1 beat / 256bit).
+	 *				Note: HBM IP uses AXI3, thus len bits are only 4-bit wide.
+	 * <strb> bits:	Used for narrow burst, normally set to all 1's.
+	 * For B channel, normally you can just set b.ready to 1 and ignore other signals.
+	 */
+	def hbm_init() = {
+		ar.bits 			:= 0.U.asTypeOf(new AXI_ADDR(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH,LEN_WIDTH))
+		aw.bits 			:= 0.U.asTypeOf(new AXI_ADDR(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH,LEN_WIDTH))
+		w.bits 				:= 0.U.asTypeOf(new AXI_DATA_W(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH))
+		ar.valid 			:= 0.U
+		aw.valid 			:= 0.U 
+		w.valid 			:= 0.U
+		r.ready 			:= 0.U
+		b.ready 			:= 1.U
+
+		aw.bits.burst		:= 1.U //burst type: 01 (INC), 00 (FIXED)
+		ar.bits.burst		:= 1.U //burst type: 01 (INC), 00 (FIXED)
+		aw.bits.size		:= 5.U
+		ar.bits.size		:= 5.U
+
+		// The following signals are unused by HBM IP.
+
+		aw.bits.region		<> DontCare
+		aw.bits.lock	    <> DontCare
+		aw.bits.user	    <> DontCare
+		aw.bits.prot	    <> DontCare
+		aw.bits.cache		<> DontCare
+		aw.bits.qos	    	<> DontCare
+		ar.bits.region		<> DontCare
+		ar.bits.lock	    <> DontCare
+		ar.bits.user	    <> DontCare
+		ar.bits.prot	    <> DontCare
+		ar.bits.cache		<> DontCare
+		ar.bits.qos	    	<> DontCare
+		w.bits.user	    	<> DontCare
+	}
+
 	// def ar_init(){
 	// 	ar.bits.addr	:= ar_addr
 	// 	ar.valid		:= ar_valid

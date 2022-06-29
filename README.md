@@ -102,7 +102,6 @@ About tcl generation, see [here](#elaboration-and-benchmarking).
 #### RegSlice
 
 `RegSlice` module can helps to insert an pipeline stage on a `DecoupledIO` bus. It can be used to improve timing on long routes, while introducing latency.  
-Note: In current version, this module is implemented based on a chisel `Queue` module instead of classic implementations. This implementation will have slightly higer resource usage and may affect timing, especially Vivado may implement some of the registers as DRAMs. It can be improved in the future.
 
 **Usage**
 
