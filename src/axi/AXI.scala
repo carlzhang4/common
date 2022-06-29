@@ -86,6 +86,17 @@ class AXI(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int, LEN_WIDT
 		// b.bits.resp			:= 3.U
 	}
 
+	// Use this only when you are initializing master side of QDMA slave bridge.
+	// Otherwise, ignore this.
+	def qdma_init() = {
+		aw.bits.qos		<> DontCare
+		aw.bits.region	<> DontCare
+		aw.bits.user	<> DontCare
+		w.bits.user		<> DontCare
+		ar.bits.qos		<> DontCare
+		ar.bits.region	<> DontCare
+		ar.bits.user	<> DontCare
+	}
 
 	/* User notes:
 	 *	
