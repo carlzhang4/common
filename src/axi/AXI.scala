@@ -86,8 +86,11 @@ class AXI(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int, LEN_WIDT
 		// b.bits.resp			:= 3.U
 	}
 
-
 	/* User notes:
+	 * 
+	 * hbm_init helps to initialize HBM AXI data bits and remove unused bits.
+	 * NOTICE: Make sure you FIRST initialize AXI buses THEN assign AXI's signals.
+	 *         Otherwise this will override your signal assignments!
 	 *	
 	 * When using HBM, following signals could be considered:
 	 * <id> bits: 	Used for transaction reordering, normally set to 0.
@@ -128,6 +131,33 @@ class AXI(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int, LEN_WIDT
 		ar.bits.cache		<> DontCare
 		ar.bits.qos	    	<> DontCare
 		w.bits.user	    	<> DontCare
+	}
+
+	// Use this only when you are initializing master side of QDMA slave bridge.
+	// Otherwise, simply ignore this.
+
+	def qdma_init() = {
+		ar.bits 			:= 0.U.asTypeOf(new AXI_ADDR(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH,LEN_WIDTH))
+		aw.bits 			:= 0.U.asTypeOf(new AXI_ADDR(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH,LEN_WIDTH))
+		w.bits 				:= 0.U.asTypeOf(new AXI_DATA_W(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH))
+		ar.valid 			:= 0.U
+		aw.valid 			:= 0.U 
+		w.valid 			:= 0.U
+		r.ready 			:= 0.U
+		b.ready 			:= 1.U
+		aw.bits.size		:= 6.U
+		ar.bits.size		:= 6.U
+		aw.bits.burst		:= 1.U //burst type: 01 (INC), 00 (FIXED)
+		ar.bits.burst		:= 1.U //burst type: 01 (INC), 00 (FIXED)
+
+		aw.bits.qos		<> DontCare
+		aw.bits.prot	<> DontCare
+		aw.bits.lock	<> DontCare
+		aw.bits.cache	<> DontCare
+		ar.bits.qos		<> DontCare
+		ar.bits.prot	<> DontCare
+		ar.bits.lock	<> DontCare
+		ar.bits.cache	<> DontCare
 	}
 
 	// def ar_init(){
