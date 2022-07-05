@@ -1,6 +1,7 @@
 package common.storage
 
 import common.Math
+import common.axi._
 import chisel3._
 import chisel3.util._
 import chisel3.experimental.{DataMirror, Direction, requireIsChiselType}
@@ -16,6 +17,37 @@ class XConverterIO[T <: Data](private val gen: T) extends Bundle
 	// val almostfull = Output(UInt(1.W))
 }
 
+object XAXIConverter{
+	def apply[T<:AXI](gen:T, m_clk:Clock, m_rstn:Bool, s_clk:Clock, s_rstn:Bool) = {
+		val slave 	= Wire(new AXI(
+			gen.ar.bits.addr.getWidth,
+			gen.r.bits.data.getWidth, 
+			gen.ar.bits.id.getWidth, 
+			gen.ar.bits.user.getWidth, 
+			gen.ar.bits.len.getWidth
+		))
+		val cvt_aw 	= XConverter(chiselTypeOf(gen.aw.bits), m_clk, m_rstn, s_clk)
+		val cvt_ar 	= XConverter(chiselTypeOf(gen.ar.bits), m_clk, m_rstn, s_clk)
+		val cvt_w 	= XConverter(chiselTypeOf(gen.w.bits), m_clk, m_rstn, s_clk)
+		val cvt_r 	= XConverter(chiselTypeOf(gen.r.bits), s_clk, s_rstn, m_clk)
+		val cvt_b 	= XConverter(chiselTypeOf(gen.b.bits), s_clk, s_rstn, m_clk)
+
+		cvt_aw.io.in 	<> gen.aw
+		cvt_ar.io.in 	<> gen.ar
+		cvt_w.io.in 	<> gen.w
+		cvt_r.io.out	<> gen.r
+		cvt_b.io.out	<> gen.b
+
+		cvt_aw.io.out 	<> slave.aw
+		cvt_ar.io.out 	<> slave.ar
+		cvt_w.io.out 	<> slave.w
+		cvt_r.io.in		<> slave.r
+		cvt_b.io.in		<> slave.b
+
+		slave
+	}
+}
+
 object XConverter{
 	def apply[T<:Data](num:Int)(gen: T) = {
 		Seq.fill(num)(Module(new XConverter(gen)))
@@ -25,7 +57,7 @@ object XConverter{
 		Module(new XConverter(gen))
 	}
 
-	def apply[T<:Data](gen: T, in_clk:Clock, rstn:Bool, out_clk:Clock) = {
+	def apply[T<:Data](gen: T, in_clk:Clock, rstn:Bool, out_clk:Clock) = {//rstn is with in_clk
 		val cvt = Module(new XConverter(gen))
 		cvt.io.in_clk	:= in_clk
 		cvt.io.out_clk	:= out_clk
