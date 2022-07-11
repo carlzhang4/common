@@ -16,3 +16,9 @@ object ToZero{
 		v.foreach(x => apply(x))
 	}
 }
+
+object ToAllOnes{
+	def apply[T<:Data](x:T):Unit={
+		x	:= -1.S(x.getWidth.W).asTypeOf(x)
+	}
+}
