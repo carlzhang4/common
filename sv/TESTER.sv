@@ -127,32 +127,33 @@ module OUT #(int width)(
 endmodule
 
 
-    module DMA #(int width = 512,int READ_DELAY = 10)(
-		input wire          clock,
-		input wire          reset,
-        //DMA CMD streams
-        input wire                  read_cmd_valid,
-        output wire                 read_cmd_ready,
-        input wire [63:0]           read_cmd_address,
-        input wire [31:0]           read_cmd_length,
-        input wire                  write_cmd_valid,
-        output wire                 write_cmd_ready,
-        input wire [63:0]           write_cmd_address,
-        input wire [31:0]           write_cmd_length,        
-        //DMA Data streams      
-        output wire                 read_data_valid,
-        input wire                  read_data_ready,
-        output reg [width-1:0]      read_data_data,
-        output reg [(width/8)-1:0]  read_data_keep,
-        output wire                 read_data_last,
-        input wire                  write_data_valid,
-        output wire                 write_data_ready,
-        input wire [width-1:0]      write_data_data,
-        input reg [(width/8)-1:0]   write_data_keep,
-        input wire                  write_data_last,
-		input wire 					back_ready,
-		output wire 				back_valid        
-    );
+module DMA #(int width = 512,int READ_DELAY = 10, int depth =16384)( 
+	//for a HBM channel, depth=256*1024*1024/32 = 8388608
+	input wire          clock,
+	input wire          reset,
+	//DMA CMD streams
+	input wire                  read_cmd_valid,
+	output wire                 read_cmd_ready,
+	input wire [63:0]           read_cmd_address,
+	input wire [31:0]           read_cmd_length,
+	input wire                  write_cmd_valid,
+	output wire                 write_cmd_ready,
+	input wire [63:0]           write_cmd_address,
+	input wire [31:0]           write_cmd_length,        
+	//DMA Data streams      
+	output wire                 read_data_valid,
+	input wire                  read_data_ready,
+	output reg [width-1:0]      read_data_data,
+	output reg [(width/8)-1:0]  read_data_keep,
+	output wire                 read_data_last,
+	input wire                  write_data_valid,
+	output wire                 write_data_ready,
+	input wire [width-1:0]      write_data_data,
+	input reg [(width/8)-1:0]   write_data_keep,
+	input wire                  write_data_last,
+	input wire 					back_ready,
+	output wire 				back_valid        
+);
 	int rd_cmd_rd_index=0;
 	int rd_cmd_wr_index=0;
     int rd_cmd_count=0;
@@ -165,7 +166,7 @@ endmodule
     integer i;
 
     bit [511:0][95:0]   rd_cmd_fifo,wr_cmd_fifo;
-	bit [16384:0][width-1:0]fifo;
+	bit [depth:0][width-1:0]fifo;
     
     localparam [3:0]    IDLE = 4'd0,
                         READ_DATA = 4'd1,
@@ -386,29 +387,21 @@ endmodule
         end
     endgenerate
 
-
-
-
-
-    task init_incr();
-        for(i=0;i<16384;i++)begin
-            fifo[i] = i;
+    task init_incr(integer offset=0);
+        for(i=0;i<depth;i++)begin
+            fifo[i] = i+offset;
         end
     endtask
 
-	// task init_from_file(string path,integer line);
-	// 	integer data_file;
-	// 	data_file = $fopen(path, "r");
-	// 	if (data_file == 0) begin
-	// 		$display("data_file handle was NULL");
-	// 		$finish;
-	// 	end
-	// 	for(i=0;i<line;i++)begin
-	// 		$fscanf(data_file,"%x" ,fifo[i]) ;
-	// 		// $display("%x\n",fifo[i]);
-	// 	end
+	task init_incr_hbm(integer offset=0);
+        for(i=0;i<depth;i++)begin
+			if(i%2==0)
+				fifo[i] = i/2+offset;
+			else
+            	fifo[i] = 0;
+        end
+    endtask
 
-	// endtask
 	task init_from_file(string path);
 		integer file;
 		string line;
