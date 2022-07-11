@@ -3,6 +3,7 @@ package common.axi
 import chisel3._
 import chisel3.util._
 import common.ToAllOnes
+import common.ToZero
 
 trait HasAddrLen extends Bundle{
 	val addr		= Output(UInt(64.W))
@@ -24,10 +25,11 @@ class AXI_ADDR(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int, LEN
 	val user					= UInt(USER_WIDTH.W)
 
 	def hbm_init() = {
+		ToZero(addr)
+		ToZero(len)
+		ToZero(id)
 		burst		:= 1.U //burst type: 01 (INC), 00 (FIXED)
 		size		:= 5.U
-
-		id			:= 0.U
 		
 		// The following signals are unused by HBM IP.
 		region		:= DontCare
@@ -48,6 +50,8 @@ class AXI_DATA_W(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int)ex
 	val strb	= UInt((DATA_WIDTH/8).W)
 
 	def hbm_init() = {
+		ToZero(data)
+		ToZero(last)
 		ToAllOnes(strb)
 		user		:= DontCare
 	}
