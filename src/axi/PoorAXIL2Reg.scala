@@ -23,12 +23,6 @@ class PoorAXIL2Reg[T<:AXI](private val gen:T, depth:Int, width:Int) extends Modu
 		io.reg_control(i)			:= reg_control(i)
 	}
 
-	val wire_control = Wire(Vec(2*depth,UInt(width.W))) 
-	for(i<- 0 until depth){
-		wire_control(depth+i)				:= reg_status(i)
-		wire_control(i)						:= reg_control(i)
-	}
-
 	ToZero(io.axi.r.bits)
 	ToZero(io.axi.b.bits)
 	io.axi.b.valid := 1.U
@@ -47,7 +41,7 @@ class PoorAXIL2Reg[T<:AXI](private val gen:T, depth:Int, width:Int) extends Modu
 
 	ar.ready	:= (s_rd === sIDLE)
 	r.valid		:= (s_rd === sWORK)
-	r.bits.data	:= wire_control(r_addr)
+	r.bits.data	:= reg_status(r_addr(log2Ceil(depth)-1,0))
 	switch(s_rd){
 		is(sIDLE){
 			when(ar.fire()){

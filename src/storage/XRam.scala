@@ -94,12 +94,12 @@ class XRamIO[T <: Data](private val gen: T, val entries: Int, val use_musk:Int=0
 // }
 
 object XRam{
-	def apply[T<:Data](num:Int)(gen: T, entries:Int) = {
-		Seq.fill(num)(Module(new XRam(gen,entries,"auto",2,0)))
+	def apply[T<:Data](num:Int)(gen: T, entries:Int, latency: Int) = {
+		Seq.fill(num)(Module(new XRam(gen,entries,"auto",latency,0)))
 	}
 
-	def apply[T<:Data](gen: T, entries:Int, memory_type:String="auto", latency:Int=2, use_musk:Int=0) = {
-		Module(new XRam(gen,entries,memory_type,latency,use_musk))
+	def apply[T<:Data](gen: T, entries:Int, memory_type:String="auto", latency:Int=2, use_musk:Int=0, initFile: String = "none") = {
+		Module(new XRam(gen,entries,memory_type,latency,use_musk, initFile))
 	}
 
 	class XRam[T<:Data](
@@ -107,7 +107,8 @@ object XRam{
 		val entries:Int,
 		val memory_type:String="auto",
 		val latency:Int=2,
-		val use_musk:Int=0
+		val use_musk:Int=0,
+		val initFile: String = "none"
 	)extends Module(){
 		require(entries >= 2, "XRam must has at least 2 entries")
 		require(entries <= 1024*1024, "XRam out of range")
@@ -132,16 +133,17 @@ object XRam{
 
 		val io = IO(new XRamIO(genType,entries,use_musk))
 
-		val ram = Module(new xpm_memory_tdpram(depth_bits, width, memory_type, latency, write_mode))
+		val ram = Module(new xpm_memory_tdpram(depth_bits, width, memory_type, latency, write_mode, initFile))
 
 		val wr_en_a = if(use_musk==0) Fill(width/8,io.wr_en_a) else io.musk_a.get & Fill(width/8,io.wr_en_a)
 
 		val usr_rst_delay		= ShiftRegister(reset,4)
 		val reset_addr			= Reg(UInt(depth_bits.W))
+
 		when(usr_rst_delay.asBool()){
-			reset_addr			:= 0.U
-		}.otherwise{
 			reset_addr			:= reset_addr+1.U
+		}.otherwise{
+			reset_addr			:= 0.U
 		}
 
 		if(use_musk == 1){
@@ -198,19 +200,23 @@ object XRam{
 		ram.io.rstb				:= 0.U
 
 		ram.io.sleep			:= 0.U
-
-		ram.io.wea				:= Mux(usr_rst_delay.asBool(), Fill(width/8,1.U), wr_en_a)
+		if (initFile != "none") {
+			ram.io.wea			:= wr_en_a
+		} else {
+			ram.io.wea			:= Mux(usr_rst_delay.asBool(), Fill(width/8,1.U), wr_en_a)
+		}
 		ram.io.web				:= 0.U
 
 	}
 }
 
 class xpm_memory_tdpram(
-	DEPTH_BIT:Int,
-	DATA_WIDTH:Int,
-	MEMORY_TYPE:String,
-	LATENCY:Int,
-	WRITE_MODE:String,
+	DEPTH_BIT: Int,
+	DATA_WIDTH: Int,
+	MEMORY_TYPE: String,
+	LATENCY: Int,
+	WRITE_MODE: String,
+	INIT_FILE: String
 ) extends BlackBox(Map(
 	"ADDR_WIDTH_A" 				-> DEPTH_BIT,
 	"ADDR_WIDTH_B" 				-> DEPTH_BIT,
@@ -220,7 +226,7 @@ class xpm_memory_tdpram(
 	"CASCADE_HEIGHT" 			-> 0,
 	"CLOCKING_MODE" 			-> "common_clock",
 	"ECC_MODE" 					-> "no_ecc",
-	"MEMORY_INIT_FILE" 			-> "none",
+	"MEMORY_INIT_FILE" 			-> INIT_FILE,
 	"MEMORY_INIT_PARAM" 		-> "",
 	"MEMORY_OPTIMIZATION" 		-> "true",
 	"MEMORY_PRIMITIVE" 			-> MEMORY_TYPE,

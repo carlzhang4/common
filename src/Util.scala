@@ -17,6 +17,12 @@ object ToZero{
 	}
 }
 
+object ToAllOnes{
+	def apply[T<:Data](x:T):Unit={
+		x	:= -1.S(x.getWidth.W).asTypeOf(x)
+	}
+}
+
 object XCounter{
 	def record_signals_asyn(is_high:Bool,is_reset:Bool,cur_clock:Clock)={
 		withClockAndReset(cur_clock,is_reset){
