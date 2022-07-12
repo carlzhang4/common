@@ -16,3 +16,23 @@ object ToZero{
 		v.foreach(x => apply(x))
 	}
 }
+
+object XCounter{
+	def record_signals_asyn(is_high:Bool,is_reset:Bool,cur_clock:Clock)={
+		withClockAndReset(cur_clock,is_reset){
+			val count = RegInit(UInt(32.W),0.U)
+			when(is_high){
+				count	:= count+1.U
+			}
+			count
+		}
+	}
+
+	def record_signals_sync(is_high:Bool)={
+		val count = RegInit(UInt(32.W),0.U)
+		when(is_high){
+			count	:= count+1.U
+		}
+		count
+	}
+}
