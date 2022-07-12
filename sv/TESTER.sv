@@ -56,6 +56,14 @@ module IN #(int width = 64)(
 		wr_index = wr_index+1;
 	endfunction
 
+	function write_many(bit[width-1:0] value, integer count);
+		integer i;
+		for(i=0;i<count;i++)begin
+			fifo[wr_index] = value;
+			wr_index = wr_index+1;
+		end
+	endfunction
+
 	task init_from_file(string path);
 		integer file;
 		string line;
