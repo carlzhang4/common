@@ -40,6 +40,21 @@ class AXI_ADDR(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int, LEN
 		qos			:= DontCare
 	}
 
+	def qdma_init() = {
+		ToZero(addr)
+		ToZero(len)
+		ToZero(id)
+		ToZero(user)
+		burst		:= 1.U //burst type: 01 (INC), 00 (FIXED)
+		size		:= 6.U
+		
+		// The following signals are unused by QDMA slave bridge.
+		region		:= DontCare
+		lock		:= DontCare
+		prot		:= DontCare
+		cache		:= DontCare
+		qos			:= DontCare
+	}
 }
 
 
@@ -54,6 +69,13 @@ class AXI_DATA_W(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int)ex
 		ToZero(last)
 		ToAllOnes(strb)
 		user		:= DontCare
+	}
+
+	def qdma_init() = {
+		ToZero(data)
+		ToZero(last)
+		ToZero(user)
+		ToAllOnes(strb)
 	}
 }
 
@@ -161,54 +183,15 @@ class AXI(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int, LEN_WIDT
 	// Otherwise, simply ignore this.
 
 	def qdma_init() = {
-		ar.bits 			:= 0.U.asTypeOf(new AXI_ADDR(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH,LEN_WIDTH))
-		aw.bits 			:= 0.U.asTypeOf(new AXI_ADDR(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH,LEN_WIDTH))
-		w.bits 				:= 0.U.asTypeOf(new AXI_DATA_W(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH))
 		ar.valid 			:= 0.U
 		aw.valid 			:= 0.U 
 		w.valid 			:= 0.U
 		r.ready 			:= 0.U
 		b.ready 			:= 1.U
-		aw.bits.size		:= 6.U
-		ar.bits.size		:= 6.U
-		aw.bits.burst		:= 1.U //burst type: 01 (INC), 00 (FIXED)
-		ar.bits.burst		:= 1.U //burst type: 01 (INC), 00 (FIXED)
 
-		aw.bits.qos		<> DontCare
-		aw.bits.prot	<> DontCare
-		aw.bits.lock	<> DontCare
-		aw.bits.cache	<> DontCare
-		ar.bits.qos		<> DontCare
-		ar.bits.prot	<> DontCare
-		ar.bits.lock	<> DontCare
-		ar.bits.cache	<> DontCare
-	}
-
-	// Use this only when you are initializing master side of QDMA slave bridge.
-	// Otherwise, simply ignore this.
-
-	def qdma_init() = {
-		ar.bits 			:= 0.U.asTypeOf(new AXI_ADDR(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH,LEN_WIDTH))
-		aw.bits 			:= 0.U.asTypeOf(new AXI_ADDR(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH,LEN_WIDTH))
-		w.bits 				:= 0.U.asTypeOf(new AXI_DATA_W(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH))
-		ar.valid 			:= 0.U
-		aw.valid 			:= 0.U 
-		w.valid 			:= 0.U
-		r.ready 			:= 0.U
-		b.ready 			:= 1.U
-		aw.bits.size		:= 6.U
-		ar.bits.size		:= 6.U
-		aw.bits.burst		:= 1.U //burst type: 01 (INC), 00 (FIXED)
-		ar.bits.burst		:= 1.U //burst type: 01 (INC), 00 (FIXED)
-
-		aw.bits.qos		<> DontCare
-		aw.bits.prot	<> DontCare
-		aw.bits.lock	<> DontCare
-		aw.bits.cache	<> DontCare
-		ar.bits.qos		<> DontCare
-		ar.bits.prot	<> DontCare
-		ar.bits.lock	<> DontCare
-		ar.bits.cache	<> DontCare
+		aw.bits.qdma_init()
+		ar.bits.qdma_init()
+		w.bits.qdma_init()
 	}
 
 	// def ar_init(){
