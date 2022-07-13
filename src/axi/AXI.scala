@@ -2,6 +2,8 @@ package common.axi
 
 import chisel3._
 import chisel3.util._
+import common.ToAllOnes
+import common.ToZero
 
 trait HasAddrLen extends Bundle{
 	val addr		= Output(UInt(64.W))
@@ -23,9 +25,19 @@ class AXI_ADDR(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int, LEN
 	val user					= UInt(USER_WIDTH.W)
 
 	def hbm_init() = {
+		ToZero(addr)
+		ToZero(len)
+		ToZero(id)
 		burst		:= 1.U //burst type: 01 (INC), 00 (FIXED)
-		prot		:= 2.U
 		size		:= 5.U
+		
+		// The following signals are unused by HBM IP.
+		region		:= DontCare
+		lock		:= DontCare
+		user		:= DontCare
+		prot		:= DontCare
+		cache		:= DontCare
+		qos			:= DontCare
 	}
 
 }
@@ -36,6 +48,13 @@ class AXI_DATA_W(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int)ex
 	val user	= UInt(USER_WIDTH.W)
 	val last	= UInt(1.W)
 	val strb	= UInt((DATA_WIDTH/8).W)
+
+	def hbm_init() = {
+		ToZero(data)
+		ToZero(last)
+		ToAllOnes(strb)
+		user		:= DontCare
+	}
 }
 
 class AXI_DATA_R(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int)extends Bundle{
@@ -54,12 +73,37 @@ class AXI_BACK(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int)exte
 	val user	= UInt(USER_WIDTH.W)
 }
 
+object AXI_HBM{
+	def apply()={
+		new AXI(33, 256, 6, 0, 4)
+	}
+}
+object AXI_HBM_ADDR{
+	def apply()={
+		new AXI_ADDR(33, 256, 6, 0, 4)
+	}
+}
+object AXI_HBM_W{
+	def apply()={
+		new AXI_DATA_W(33, 256, 6, 0)
+	}
+}
+object AXI_HBM_R{
+	def apply()={
+		new AXI_DATA_R(33, 256, 6, 0)
+	}
+}
+object AXI_HBM_B{
+	def apply()={
+		new AXI_BACK(33, 256, 6, 0)
+	}
+}
 
 class AXI(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int, LEN_WIDTH:Int) extends Bundle{
 	val aw	= (Decoupled(new AXI_ADDR(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH,LEN_WIDTH)))
 	val ar	= (Decoupled(new AXI_ADDR(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH,LEN_WIDTH)))
-	val r	= Flipped(Decoupled(new AXI_DATA_R(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH)))
 	val w	= (Decoupled(new AXI_DATA_W(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH)))
+	val r	= Flipped(Decoupled(new AXI_DATA_R(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH)))
 	val b	= Flipped(Decoupled(new AXI_BACK(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH)))
 
 	def init() = {
@@ -102,6 +146,21 @@ class AXI(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int, LEN_WIDT
 	 * For B channel, normally you can just set b.ready to 1 and ignore other signals.
 	 */
 	def hbm_init() = {
+		ar.valid 			:= 0.U
+		aw.valid 			:= 0.U 
+		w.valid 			:= 0.U
+		r.ready 			:= 0.U
+		b.ready 			:= 1.U
+
+		aw.bits.hbm_init()
+		ar.bits.hbm_init()
+		w.bits.hbm_init()
+	}
+
+	// Use this only when you are initializing master side of QDMA slave bridge.
+	// Otherwise, simply ignore this.
+
+	def qdma_init() = {
 		ar.bits 			:= 0.U.asTypeOf(new AXI_ADDR(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH,LEN_WIDTH))
 		aw.bits 			:= 0.U.asTypeOf(new AXI_ADDR(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH,LEN_WIDTH))
 		w.bits 				:= 0.U.asTypeOf(new AXI_DATA_W(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH))
@@ -110,27 +169,19 @@ class AXI(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int, LEN_WIDT
 		w.valid 			:= 0.U
 		r.ready 			:= 0.U
 		b.ready 			:= 1.U
-
+		aw.bits.size		:= 6.U
+		ar.bits.size		:= 6.U
 		aw.bits.burst		:= 1.U //burst type: 01 (INC), 00 (FIXED)
 		ar.bits.burst		:= 1.U //burst type: 01 (INC), 00 (FIXED)
-		aw.bits.size		:= 5.U
-		ar.bits.size		:= 5.U
 
-		// The following signals are unused by HBM IP.
-
-		aw.bits.region		<> DontCare
-		aw.bits.lock	    <> DontCare
-		aw.bits.user	    <> DontCare
-		aw.bits.prot	    <> DontCare
-		aw.bits.cache		<> DontCare
-		aw.bits.qos	    	<> DontCare
-		ar.bits.region		<> DontCare
-		ar.bits.lock	    <> DontCare
-		ar.bits.user	    <> DontCare
-		ar.bits.prot	    <> DontCare
-		ar.bits.cache		<> DontCare
-		ar.bits.qos	    	<> DontCare
-		w.bits.user	    	<> DontCare
+		aw.bits.qos		<> DontCare
+		aw.bits.prot	<> DontCare
+		aw.bits.lock	<> DontCare
+		aw.bits.cache	<> DontCare
+		ar.bits.qos		<> DontCare
+		ar.bits.prot	<> DontCare
+		ar.bits.lock	<> DontCare
+		ar.bits.cache	<> DontCare
 	}
 
 	// Use this only when you are initializing master side of QDMA slave bridge.
