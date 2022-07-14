@@ -26,42 +26,27 @@ object SerialArbiter{
 			val last = Vec(n, Input(UInt(1.W)))
 			val out = Decoupled(gen)
 		})
+		val req				= Cat(io.in.map(_.valid).reverse)//with reverse, port 0 is at the LSB
+		val base			= RegInit(UInt(n.W),1.U)
+		val double_req		= Cat(req,req)
+		val double_grant	= double_req & ~(double_req-base)
+		val grant			= double_grant(n-1,0) | double_grant(2*n-1,n)
+		val grant_index		= OHToUInt(grant)
 
 		val is_head 		= RegInit(UInt(1.W),1.U)
-
-		val grant_idx		= Wire(UInt(log2Up(n).W))
-
 		val idx				= Wire(UInt(log2Up(n).W))
-
 		val last_idx		= RegInit(UInt(log2Up(n).W),0.U)
 
-		grant_idx			:= 0.U
-
-		val shifts = Reg(Vec(n, UInt(log2Up(n).W)))
-		when(reset.asBool){
-			for(i <- 0 until n){
-				shifts(i)	:= i.U
-			}
-		}.otherwise{
-			for(i <- 1 until n){
-				shifts(i)	:= shifts(i-1)
-			}
-			shifts(0)		:= shifts(n-1)
+		when(io.out.fire() && io.last(idx)===1.U){
+			base			:= Cat(base(n-2,0),base(n-1))
 		}
 
-		for(i <- 0 until n){
-			when(io.in(shifts(i)).valid === 1.U){
-				grant_idx 	:= shifts(i)
-			}
-		}
 		when(is_head===1.U){
-			idx				:= grant_idx
+			idx				:= grant_index
 		}.otherwise{
 			idx 			:= last_idx
 		}
 		
-		
-
 		io.out.valid		:= 0.U
 		io.out.bits			:= io.in(0).bits
 		for(i <- 0 until n){
