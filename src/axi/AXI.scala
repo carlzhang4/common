@@ -10,6 +10,9 @@ trait HasAddrLen extends Bundle{
 	val len			= Output(UInt(8.W))
 }
 
+trait HasLast extends Bundle{
+	val last		= Output(UInt(1.W))
+}
 
 class AXI_ADDR(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int, LEN_WIDTH:Int)extends Bundle with HasAddrLen{
 	override val addr			= UInt(ADDR_WIDTH.W)
