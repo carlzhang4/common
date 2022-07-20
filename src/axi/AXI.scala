@@ -360,9 +360,12 @@ object Connect_AXI{
 	}
 }
 
-
-class AXIS(val DATA_WIDTH:Int)extends Bundle{
+object AXIS{
+	def apply(DATA_WIDTH:Int) = {
+		new AXIS(DATA_WIDTH)
+	}
+}
+class AXIS(val DATA_WIDTH:Int)extends Bundle with HasLast{
 	val data = UInt(DATA_WIDTH.W)
 	val keep = UInt((DATA_WIDTH/8).W)
-	val last = UInt(1.W)
 }
