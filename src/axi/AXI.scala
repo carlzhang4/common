@@ -366,6 +366,6 @@ object AXIS{
 	}
 }
 class AXIS(val DATA_WIDTH:Int)extends Bundle with HasLast{
-	val data = UInt(DATA_WIDTH.W)
-	val keep = UInt((DATA_WIDTH/8).W)
+	val data = Output(UInt(DATA_WIDTH.W))
+	val keep = Output(UInt((DATA_WIDTH/8).W))
 }
