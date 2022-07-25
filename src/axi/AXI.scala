@@ -10,6 +10,9 @@ trait HasAddrLen extends Bundle{
 	val len			= Output(UInt(8.W))
 }
 
+trait HasLast extends Bundle{
+	val last		= Output(UInt(1.W))
+}
 
 class AXI_ADDR(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int, LEN_WIDTH:Int)extends Bundle with HasAddrLen{
 	override val addr			= UInt(ADDR_WIDTH.W)
@@ -357,9 +360,12 @@ object Connect_AXI{
 	}
 }
 
-
-class AXIS(val DATA_WIDTH:Int)extends Bundle{
-	val data = UInt(DATA_WIDTH.W)
-	val keep = UInt((DATA_WIDTH/8).W)
-	val last = UInt(1.W)
+object AXIS{
+	def apply(DATA_WIDTH:Int) = {
+		new AXIS(DATA_WIDTH)
+	}
+}
+class AXIS(val DATA_WIDTH:Int)extends Bundle with HasLast{
+	val data = Output(UInt(DATA_WIDTH.W))
+	val keep = Output(UInt((DATA_WIDTH/8).W))
 }
