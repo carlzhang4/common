@@ -30,6 +30,12 @@ object XQueue{
 		Module(new XQueue(gen,entries,almostfull_threshold,packet_fifo))
 	}
 
+	def apply[T<:Data](in:DecoupledIO[T], entries:Int) = {
+		val t = Module(new XQueue(chiselTypeOf(in.bits),entries,2))
+		t.io.in	<> in
+		t.io.out
+	}
+
 	class XQueue[T<:Data](
 		val gen:T,
 		val entries:Int,
