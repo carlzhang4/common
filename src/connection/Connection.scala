@@ -13,4 +13,9 @@ object Connection{
 		one.valid	:= many.map(_.valid).reduce(_ & _)
 		many.map(t => t.ready := one.fire())
 	}
+
+	def one2one(one:DecoupledIO[Data])(two:DecoupledIO[Data])		= {
+		one.valid	<> two.valid
+		one.ready	<> two.ready
+	}
 }
