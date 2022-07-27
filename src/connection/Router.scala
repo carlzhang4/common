@@ -20,41 +20,66 @@ object SimpleRouter{
 			val idx		= Input(UInt(log2Up(n).W))
 		})
 
-		io.in.ready		:= 0.U
+		val in_pro	= Wire(Decoupled(new Bundle{
+			val idx		= Output(UInt(log2Up(n).W))
+			val genbits	= Output(gen)
+		}))
+		in_pro.ready			<> io.in.ready
+		in_pro.valid			:= io.in.valid
+		in_pro.bits.genbits		:= io.in.bits
+		in_pro.bits.idx			:= io.idx
+
+		val in				= RegSlice(in_pro)
+		val out				= Wire(Vec(n,Decoupled(gen)))
+
+		in.ready			:= 0.U
 		for(i<-0 until n){
-			io.out(i).bits		:= io.in.bits
-			io.out(i).valid		:= 0.U
-			when(io.idx === i.U){
-				io.out(i).valid	:= io.in.valid
-				io.in.ready		:= io.out(i).ready
+			out(i).bits		:= in.bits.genbits
+			out(i).valid	:= 0.U
+			when(in.bits.idx === i.U){
+				out(i).valid	:= in.valid
+				in.ready		:= out(i).ready
 			}
+		}
+		for(i<-0 until n){
+			io.out(i)				<> RegSlice(out(i))
 		}
 	}
 }
 
 object SerialRouter{
-	def apply[T<:Data](num:Int)(gen:T, n:Int) = {
+	def apply[T<:HasLast](num:Int)(gen:T, n:Int) = {
 		Seq.fill(num)(Module(new SerialRouter(gen,n)))
 	}
-	def apply[T<:Data](gen:T, n:Int) = {
+	def apply[T<:HasLast](gen:T, n:Int) = {
 		Module(new SerialRouter(gen,n))
 	}
-	class SerialRouter[T<:Data](val gen:T, val n:Int)extends Module{
+	class SerialRouter[T<:HasLast](val gen:T, val n:Int)extends Module{
 		val io = IO(new Bundle{
 			val in		= Flipped(Decoupled(gen))
 			val out		= Vec(n,Decoupled(gen))
 			val idx		= Input(UInt(log2Up(n).W))
-			val last	= Input(UInt(1.W))
-			val last_o	= Output(UInt(1.W))
 		})
-		io.last_o		:= io.last
+
+		val in_pro	= Wire(Decoupled(new Bundle{
+			val idx		= Output(UInt(log2Up(n).W))
+			val genbits	= Output(gen)
+		}))
+		in_pro.ready			<> io.in.ready
+		in_pro.valid			:= io.in.valid
+		in_pro.bits.genbits		:= io.in.bits
+		in_pro.bits.idx			:= io.idx
+
+		val in				= RegSlice(in_pro)
+		val out				= Wire(Vec(n,Decoupled(gen)))
+		
 
 		val is_head 		= RegInit(UInt(1.W),1.U)
 		val idx				= RegInit(UInt(log2Up(n).W),0.U)
 
-		when(io.in.fire() && io.last===1.U){
+		when(in.fire() && in.bits.genbits.last===1.U){
 			is_head		:= 1.U
-		}.elsewhen(io.in.fire()){
+		}.elsewhen(in.fire()){
 			is_head		:= 0.U
 		}
 
@@ -62,22 +87,25 @@ object SerialRouter{
 			idx			:= io.idx
 		}
 
-		io.in.ready		:= 0.U
+		in.ready		:= 0.U
 		for(i<-0 until n){
-			io.out(i).bits		:= io.in.bits
-			io.out(i).valid		:= 0.U
+			out(i).bits			:= in.bits.genbits
+			out(i).valid		:= 0.U
 			when(is_head === 1.U){
 				when(io.idx === i.U){
-					io.out(i).valid	:= io.in.valid
-					io.in.ready		:= io.out(i).ready
+					out(i).valid	:= in.valid
+					in.ready		:= out(i).ready
 				}
 			}.otherwise{
 				when(idx === i.U){
-					io.out(i).valid	:= io.in.valid
-					io.in.ready		:= io.out(i).ready
+					out(i).valid	:= in.valid
+					in.ready		:= out(i).ready
 				}
 			}
-			
+		}
+
+		for(i<-0 until n){
+			io.out(i)				<> RegSlice(out(i))
 		}
 	}
 }
