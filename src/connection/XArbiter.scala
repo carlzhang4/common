@@ -138,7 +138,7 @@ object CompositeArbiter{
 				}
 			}
 		}
-		when(out_data.fire()){
+		when(out_data.fire()&&out_data.bits.last===1.U){
 			base		:= Cat(base(n-2,0),base(n-1))
 		}
 
