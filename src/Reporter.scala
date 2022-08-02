@@ -9,9 +9,9 @@ abstract class Reporter(unique_prefix:String="default"){
 	var msgs = new Array[String](MAX_NUM)
 	var cur_idx = 0
 
-	def report(cond:Bool,msg:String)={
+	def report(data:Data,msg:String)={
 		val unique_id = unique_prefix+"_report_"+cur_idx.toString
-		BoringUtils.addSource(cond,unique_id,true,true)
+		BoringUtils.addSource(data,unique_id,true,true)
 		msgs(cur_idx) = msg
 		cur_idx = cur_idx + 1
 		if(cur_idx>=MAX_NUM){
@@ -19,7 +19,7 @@ abstract class Reporter(unique_prefix:String="default"){
 		}
 	}
 
-	def get_reports(sigs:Seq[Bool])={
+	def get_reports(sigs:Seq[Data])={
 		for(i<-0 until cur_idx){
 			val unique_id = unique_prefix+"_report_"+i.toString
 			BoringUtils.addSink(sigs(i),unique_id)
