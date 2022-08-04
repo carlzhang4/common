@@ -27,9 +27,11 @@ abstract class Reporter(unique_prefix:String="default"){
 	}
 
 	def print_msgs()={
+		println(unique_prefix+"Repoter:")
 		for(i<-0 until cur_idx){
-			println("Report "+i.toString+":"+msgs(i))
+			println("printf(\"" + f"${msgs(i)}%-60s:" + "%d\\n\"" + f", bar[${i}%d+offset_${unique_prefix}%sReporter]);")
 		}
+		println()
 	}
 }
 
@@ -39,7 +41,7 @@ abstract class XCounters(unique_prefix:String="DefaultCounterReporter"){
 	var cur_idx = 0
 
 	def record(en:Bool, msg:String)={
-		val unique_id	= unique_prefix+"_report_"+cur_idx.toString
+		val unique_id	= unique_prefix+"_counter_"+cur_idx.toString
 		val counter 	= RegInit(UInt(32.W),0.U)
 		when(en){
 			counter		:= counter+1.U
@@ -54,15 +56,17 @@ abstract class XCounters(unique_prefix:String="DefaultCounterReporter"){
 
 	def get_counters(counters:Seq[UInt])={
 		for(i<-0 until cur_idx){
-			val unique_id = unique_prefix+"_report_"+i.toString
+			val unique_id = unique_prefix+"_counter_"+i.toString
 			BoringUtils.addSink(counters(i),unique_id)
 		}
 		cur_idx
 	}
 
 	def print_msgs()={
+		println(unique_prefix+"Counter:")
 		for(i<-0 until cur_idx){
-			println("Report "+i.toString+":"+msgs(i))
+			println("printf(\"" + f"${msgs(i)}%-60s:" + "%d\\n\"" + f", bar[${i}%d+offset_${unique_prefix}%sCounter]);")
 		}
+		println()
 	}
 }
