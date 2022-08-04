@@ -23,7 +23,7 @@ object ToAllOnes{
 	}
 }
 
-object XCounter{
+object ValidCounter{
 	def record_signals_asyn(is_high:Bool,is_reset:Bool,cur_clock:Clock)={
 		withClockAndReset(cur_clock,is_reset){
 			val count = RegInit(UInt(32.W),0.U)

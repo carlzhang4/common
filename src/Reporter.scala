@@ -35,7 +35,7 @@ abstract class Reporter(unique_prefix:String="default"){
 	}
 }
 
-abstract class XCounters(unique_prefix:String="DefaultCounterReporter"){
+abstract class XCounter(unique_prefix:String="DefaultCounterReporter"){
 	def MAX_NUM = 32
 	var msgs = new Array[String](MAX_NUM)
 	var cur_idx = 0
