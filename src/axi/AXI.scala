@@ -130,7 +130,15 @@ class AXI(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int, LEN_WIDT
 	val w	= (Decoupled(new AXI_DATA_W(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH)))
 	val r	= Flipped(Decoupled(new AXI_DATA_R(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH)))
 	val b	= Flipped(Decoupled(new AXI_BACK(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH)))
-
+	def slave_init() = {
+		ar.ready			:= 1.U
+		aw.ready			:= 1.U
+		w.ready				:= 1.U
+		r.valid				:= 0.U
+		b.valid				:= 0.U
+		r.bits				:= 0.U.asTypeOf(new AXI_DATA_R(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH))
+		b.bits				:= 0.U.asTypeOf(new AXI_BACK(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH))
+	}
 	def init() = {
 		ar.bits 			:= 0.U.asTypeOf(new AXI_ADDR(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH,LEN_WIDTH))
 		aw.bits 			:= 0.U.asTypeOf(new AXI_ADDR(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH,LEN_WIDTH))

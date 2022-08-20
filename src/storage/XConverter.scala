@@ -65,6 +65,16 @@ object XConverter{
 		cvt
 	}
 
+	def apply[T<:Data](in:DecoupledIO[T], in_clk:Clock, rstn:Bool, out_clk:Clock) = {
+		val cvt = Module(new XConverter(chiselTypeOf(in.bits)))
+		cvt.io.in_clk	:= in_clk
+		cvt.io.out_clk	:= out_clk
+		cvt.io.rstn		:= rstn
+		cvt.io.in		<> in
+
+		cvt.io.out
+	}
+
 	class XConverter[T<:Data](
 		val gen:T,
 	)extends RawModule(){
