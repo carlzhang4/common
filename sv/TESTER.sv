@@ -42,7 +42,7 @@ module IN #(int width = 64)(
                 rd_index=rd_index+1;
                 // $display("fire\n");
             end
-            data = fifo[rd_index];
+            data = fifo[rd_index%10000];
             if(wr_index>rd_index)begin
                 valid=1;
             end 
@@ -52,14 +52,14 @@ module IN #(int width = 64)(
         end
 	end
 	function write(bit[width-1:0] value);
-		fifo[wr_index] = value;
+		fifo[wr_index%10000] = value;
 		wr_index = wr_index+1;
 	endfunction
 
 	function write_many(bit[width-1:0] value, integer count);
 		integer i;
 		for(i=0;i<count;i++)begin
-			fifo[wr_index] = value;
+			fifo[wr_index%10000] = value;
 			wr_index = wr_index+1;
 		end
 	endfunction
@@ -76,7 +76,7 @@ module IN #(int width = 64)(
 			$fgets(line,file);
 			if(line == "")
 				break;
-			$sscanf(line,"%x" ,fifo[wr_index]);
+			$sscanf(line,"%x" ,fifo[wr_index%10000]);
 			wr_index = wr_index+1;
 			// $display("%x\n",fifo[i]);
 		end
@@ -103,7 +103,7 @@ module OUT #(int width)(
 		end
         else begin
             if(valid & ready)begin
-                fifo[wr_index] = data;
+                fifo[wr_index%10000] = data;
                 wr_index = wr_index+1;
             end            
         end
@@ -122,7 +122,7 @@ module OUT #(int width)(
 			$display("No data expected, start waiting");
 		end
 		wait(wr_index>rd_index);
-		if(value == fifo[rd_index])begin
+		if(value == fifo[rd_index%10000])begin
 			$display("PASS, %h",value);
 		end
 		else begin
