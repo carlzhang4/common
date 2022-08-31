@@ -4,6 +4,11 @@ import common.Math
 import chisel3._
 import chisel3.util._
 import chisel3.experimental.{DataMirror, Direction, requireIsChiselType}
+import common.Collector
+
+object XQueueConfig{
+	var Debug = false
+}
 
 object InIO {
   def apply[T<:Data](gen: T): DecoupledIO[T] = Decoupled(gen)
@@ -83,6 +88,10 @@ object XQueue{
 			q.io.deq <> io.out
 			io.count := q.io.count
 			io.almostfull := q.io.count >= (entries-almostfull_threshold).U
+		}
+
+		if(XQueueConfig.Debug==true){
+			Collector.report(io.in.valid&io.in.ready===0.U,"overflow")
 		}
 	}
 }
