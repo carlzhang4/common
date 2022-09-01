@@ -9,9 +9,7 @@ import chisel3.experimental.{annotate,ChiselAnnotation}
 import common.axi.HasLast
 
 case class TestMetadataAnno(
-		datas:Array[Data],
-		msgs:Array[String],
-		metas:Array[String],
+		eles:Array[Element],
 		num:Int,
 		width:Int,
 		offset:Int,
@@ -37,21 +35,27 @@ case class TestMetadataAnno(
 		}
 		mods.mkString(".")+str
 	}
-	println(f"Report width ${width}:")
+	println(f"//Report width ${width}:")
 
 	if(width==32){
-		for(i<-0 until num){
-			val str		= get_str(datas(i).pathName, msgs(i), metas(i))
+		for(i<-0 until num){//generate mapping
 			val index	= i+offset
-			println("printf(\"" + f"${str}%-60s:" + "%u\\n\"" + f", bar[${index}%d]);")
+			if(eles(i).fix_str != "" && !eles(i).fix_str.startsWith("_")){
+				println(f"int ${eles(i).fix_str} = ${index}%d;")
+			}
+		}
+		for(i<-0 until num){
+			val str		= get_str(eles(i).data.pathName, eles(i).msg, eles(i).meta)
+			val index	= i+offset
+			println("printf(\"" + f"${str}%-60s: " + "%u\\n\"" + f", bar[${index}%d]);")
 		}
 	}
 	if(width==1){
 		var bit_index = 0
 		var index = offset
 		for(i<-0 until num){
-			val str		= get_str(datas(i).pathName, msgs(i), metas(i))
-			println("printf(\"" + f"${str}%-60s:" + "%u\\n\"" + f", (bar[${index}%d] >> ${bit_index}) & 1);")
+			val str		= get_str(eles(i).data.pathName, eles(i).msg, eles(i).meta)
+			println("printf(\"" + f"${str}%-60s: " + "%u\\n\"" + f", (bar[${index}%d] >> ${bit_index}) & 1);")
 			bit_index = bit_index + 1
 			if(bit_index == 32){
 				bit_index = 0
@@ -59,36 +63,37 @@ case class TestMetadataAnno(
 			}
 		}
 	}
+	println()
+}
+
+class Element(var data:Data,var msg:String,var meta:String,var fix_str:String){
+
 }
 
 object Collector{
 	def MAX_NUM = 512
 	val widths	= Set(1,32)
-	var msgs	= widths.map(_->new Array[String](MAX_NUM)).toMap
-	var metas	= widths.map(_->new Array[String](MAX_NUM)).toMap
-	var datas	= widths.map(_->new Array[Data](MAX_NUM)).toMap
+	var eles	= widths.map(_->new Array[Element](MAX_NUM)).toMap
 	var idxs	= collection.mutable.Map(widths.map(_->0).toSeq:_*)
 
-	def add_signal(data:UInt,full_data:UInt,msg:String,meta:String="") = {
+	def add_signal(data:UInt,full_data:UInt,msg:String,meta:String="",fix_str:String="") = {
 		val width = data.getWidth
 		val unique_id = "report_w"+width+"_"+idxs(width)
 		BoringUtils.addSource(data,unique_id,true,true)
-		msgs(width)(idxs(width)) = msg
-		metas(width)(idxs(width)) = meta
-		datas(width)(idxs(width)) = full_data
+		eles(width)(idxs(width)) = new Element(full_data,msg,meta,fix_str)
 		idxs(width) = idxs(width)+1
 		if(idxs(width) >= MAX_NUM){
 			throw new Exception("Report number exceeds")
 		}
 	}
 
-	def report(data:UInt, msg:String="") = {		
+	def report(data:UInt, msg:String="", fix_str:String="") = {		
 		val width = data.getWidth
 		if(width==64){
-			add_signal(data(63,32),data,msg,"[high]")
-			add_signal(data(31,0),data,msg,"[low]")
+			add_signal(data(63,32),data,msg,"[high]",fix_str+"_HIGH")
+			add_signal(data(31,0),data,msg,"[low]",fix_str+"_LOW")
 		}else if(widths.contains(width)){
-			add_signal(data,data,msg)
+			add_signal(data,data,msg,fix_str=fix_str)
 		}else{
 			throw new Exception("report width must be either 1/32/64") 
 		}
@@ -147,13 +152,11 @@ object Collector{
 		if(idxs(32) != 0){
 			annotate(new ChiselAnnotation {
 			def toFirrtl = TestMetadataAnno(
-				datas(32),
-				msgs(32),
-				metas(32),
+				eles(32),
 				idxs(32),
 				32,
 				offset,
-				datas(32)(0).toTarget)
+				eles(32)(0).data.toTarget)
 			})	
 		}
 
@@ -170,13 +173,11 @@ object Collector{
 		if(idxs(1)!=0){
 			annotate(new ChiselAnnotation {
 			def toFirrtl = TestMetadataAnno(
-				datas(1),
-				msgs(1),
-				metas(1),
+				eles(1),
 				idxs(1),
 				1,
 				cur_offset,
-				datas(1)(0).toTarget)
+				eles(1)(0).data.toTarget)
 			})	
 		}
 	}
