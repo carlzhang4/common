@@ -18,4 +18,23 @@ object Connection{
 		one.valid	<> two.valid
 		one.ready	<> two.ready
 	}
+
+	def limit(in:DecoupledIO[Data], out:DecoupledIO[Data], en_cycles:UInt,total_cycles:UInt) = {
+		val reg_count	= RegInit(UInt(32.W),0.U)
+		val en			= Wire(Bool())
+		when(reg_count<en_cycles){
+			en			:= true.B
+		}.otherwise{
+			en			:= false.B
+		}
+		when(reg_count+1.U>=total_cycles){
+			reg_count	:= 0.U
+		}.otherwise{
+			reg_count	:= reg_count+1.U
+		}
+		out.bits		:= in.bits
+		out.valid		:= in.valid	& en
+		in.ready		:= out.ready & en
+	}
+		
 }
