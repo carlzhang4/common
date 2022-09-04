@@ -147,7 +147,7 @@ object Collector{
 		for(i<-0 until idxs(32)){
 			val unique_id = "report_w32_"+i.toString
 			BoringUtils.addSink(sigs_32(i),unique_id)
-			status_reg(cur_offset+i)	<> sigs_32(i)
+			status_reg(cur_offset+i)	:= sigs_32(i)
 		}
 		if(idxs(32) != 0){
 			annotate(new ChiselAnnotation {
@@ -168,7 +168,7 @@ object Collector{
 			BoringUtils.addSink(sigs_1(i),unique_id)
 		}	
 		for(i<-0 until idxs(1)/32){
-			status_reg(cur_offset+i)	<> sigs_1.asUInt()(i*32+31,i*32)
+			status_reg(cur_offset+i)	:= sigs_1.asUInt()(i*32+31,i*32)
 		}
 		if(idxs(1)!=0){
 			annotate(new ChiselAnnotation {
