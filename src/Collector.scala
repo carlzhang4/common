@@ -41,7 +41,7 @@ case class TestMetadataAnno(
 		for(i<-0 until num){//generate mapping
 			val index	= i+offset
 			if(eles(i).fix_str != "" && !eles(i).fix_str.startsWith("_")){
-				println(f"int ${eles(i).fix_str} = ${index}%d;")
+				println(f"int ${eles(i).fix_str}%-60s    = ${index}%d;")
 			}
 		}
 		for(i<-0 until num){
@@ -161,13 +161,13 @@ object Collector{
 		}
 
 		cur_offset = cur_offset+idxs(32)
-		val sigs_1 = Wire(Vec(idxs(1),UInt(1.W)))
+		val sigs_1 = Wire(Vec(Math.round_up(idxs(1),32),UInt(1.W)))
 		ToZero(sigs_1)
 		for(i<-0 until idxs(1)){
 			val unique_id = "report_w1_"+i.toString
 			BoringUtils.addSink(sigs_1(i),unique_id)
 		}	
-		for(i<-0 until idxs(1)/32){
+		for(i<-0 until Math.round_up(idxs(1),32)/32){
 			status_reg(cur_offset+i)	:= sigs_1.asUInt()(i*32+31,i*32)
 		}
 		if(idxs(1)!=0){
