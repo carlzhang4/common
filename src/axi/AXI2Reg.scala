@@ -62,30 +62,29 @@ class AXI2Reg[T<:AXI](private val gen:T, depth:Int, width:Int) extends Module{
 	}
 
 	//ar and r
-	val q_ar = XQueue(chiselTypeOf(io.axi.ar.bits), 2, almostfull_threshold = 0)
-	q_ar.io.in <> io.axi.ar
-	q_ar.io.out.ready := 0.U
+	val q_ar = RegSlice(io.axi.ar)
+	q_ar.ready := 0.U
 
-	val q_r = XQueue(chiselTypeOf(io.axi.r.bits), 2, almostfull_threshold = 0)
-	q_r.io.out <> io.axi.r
-	q_r.io.in.valid 	:= 0.U
-	ToZero(q_r.io.in.bits) //r.resp = 0.U for normal access ok
+	val q_r 	= new RegSlice(chiselTypeOf(io.axi.r.bits))
+	q_r.io.downStream <> io.axi.r
+	q_r.io.upStream.valid 	:= 0.U
+	ToZero(q_r.io.upStream.bits) //r.resp = 0.U for normal access ok
 
 	val offset_r = RegInit(0.U(32.W))
-	val addr_r = q_ar.io.out.bits.addr
+	val addr_r = q_ar.bits.addr
 
-	when(q_ar.io.out.valid){
-		q_r.io.in.valid := 1.U
+	when(q_ar.valid){
+		q_r.io.upStream.valid := 1.U
 	}
-	val is_last = offset_r===q_ar.io.out.bits.len
-	when(q_r.io.in.fire()){
+	val is_last = offset_r===q_ar.bits.len
+	when(q_r.io.upStream.fire()){
 		offset_r	:= offset_r+1.U
 		when(is_last){
-			offset_r			:= 0.U
-			q_ar.io.out.ready	:= 1.U
+			offset_r					:= 0.U
+			q_ar.ready	:= 1.U
 		}
 	}
-	q_r.io.in.bits.data	:= reg_control(addr_r+offset_r)
-	q_r.io.in.bits.last	:= is_last
+	q_r.io.upStream.bits.data	:= reg_control(addr_r+offset_r)
+	q_r.io.upStream.bits.last	:= is_last
 	
 }

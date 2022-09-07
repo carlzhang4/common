@@ -23,7 +23,6 @@ class PoorAXIL2Reg[T<:AXI](private val gen:T, depth:Int, width:Int) extends Modu
 		io.reg_control(i)			:= reg_control(i)
 	}
 
-	ToZero(io.axi.r.bits)
 	ToZero(io.axi.b.bits)
 	io.axi.b.valid := 1.U
 
@@ -36,12 +35,16 @@ class PoorAXIL2Reg[T<:AXI](private val gen:T, depth:Int, width:Int) extends Modu
 	val w = io.axi.w
 	val aw = io.axi.aw
 
+	val r_delay	= Module(new RegSlice(chiselTypeOf(io.axi.r.bits)))
+	ToZero(r_delay.io.upStream.bits)
+
 	val r_addr = Reg(chiselTypeOf(ar.bits.addr))
 	val w_addr = Reg(chiselTypeOf(ar.bits.addr))
 
-	ar.ready	:= (s_rd === sIDLE)
-	r.valid		:= (s_rd === sWORK)
-	r.bits.data	:= reg_status(r_addr(log2Ceil(depth)-1,0))
+	ar.ready						:= (s_rd === sIDLE)
+	r_delay.io.upStream.valid		:= (s_rd === sWORK)
+	r_delay.io.upStream.bits.data	:= reg_status(r_addr(log2Ceil(depth)-1,0))
+	r								<> r_delay.io.downStream
 	switch(s_rd){
 		is(sIDLE){
 			when(ar.fire()){
@@ -50,7 +53,7 @@ class PoorAXIL2Reg[T<:AXI](private val gen:T, depth:Int, width:Int) extends Modu
 			}
 		}
 		is(sWORK){
-			when(r.fire()){
+			when(r_delay.io.upStream.fire()){
 				s_rd			:= sIDLE
 			}
 		}
