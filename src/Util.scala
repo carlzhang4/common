@@ -43,7 +43,9 @@ object ValidCounter{
 	}
 }
 
-case class Timer(start:UInt,end:UInt){
+case class Timer(start_origin:UInt,end_origin:UInt){
+	val start							= RegNext(start_origin)
+	val end								= RegNext(end_origin)
 	private val reg_time				= RegInit(UInt(64.W),0.U)
 	private val reg_latency				= RegInit(UInt(64.W),0.U)
 	private val reg_cnt_start			= RegInit(UInt(32.W),0.U)
@@ -86,4 +88,24 @@ case class Timer(start:UInt,end:UInt){
 	val cnt_start				= reg_cnt_start
 	val cnt_end					= reg_cnt_end
 	val time					= reg_time
+}
+
+object Statistics{
+	def everMax(cur_value:UInt)={
+		val reg_max = RegInit(UInt(cur_value.getWidth.W),0.U)
+		when(cur_value > reg_max){
+			reg_max			:= cur_value
+		}
+		reg_max
+	}
+
+	def longestActive(en:Bool, width:Int=32)={
+		val reg_cur = RegInit(UInt(width.W),0.U)
+		when(en){
+			reg_cur			:= reg_cur+1.U
+		}.otherwise{
+			reg_cur			:= 0.U
+		}
+		everMax(reg_cur)
+	}
 }
