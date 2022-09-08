@@ -7,6 +7,9 @@ import firrtl.annotations.SingleTargetAnnotation
 import firrtl.annotations.ReferenceTarget
 import chisel3.experimental.{annotate,ChiselAnnotation}
 import common.axi.HasLast
+import java.io.PrintWriter
+import java.io.FileOutputStream
+import java.io.File
 
 case class TestMetadataAnno(
 		eles:Array[Element],
@@ -35,19 +38,33 @@ case class TestMetadataAnno(
 		}
 		mods.mkString(".")+str
 	}
-	println(f"//Report width ${width}:")
+
+	val isAppend = width==1
+	val moduleName = target.circuit
+	val	f_print = new PrintWriter(new FileOutputStream(new File("gen/"+moduleName+".print"), isAppend))
+	
+	val s = f"//Report width ${width}:"
+	println(s)
+	f_print.append(s+"\n")
 
 	if(width==32){
+		val	f_fix = new PrintWriter(new FileOutputStream(new File("gen/"+moduleName+".fix"), false))
 		for(i<-0 until num){//generate mapping
 			val index	= i+offset
 			if(eles(i).fix_str != "" && !eles(i).fix_str.startsWith("_")){
-				println(f"int ${eles(i).fix_str}%-60s    = ${index}%d;")
+				val s = f"int ${eles(i).fix_str}%-60s    = ${index}%d;"
+				println(s)
+				f_fix.append(s+"\n")
 			}
 		}
+		f_fix.close()
+
 		for(i<-0 until num){
 			val str		= get_str(eles(i).data.pathName, eles(i).msg, eles(i).meta)
 			val index	= i+offset
-			println("printf(\"" + f"${str}%-60s: " + "%u\\n\"" + f", bar[${index}%d]);")
+			val s = "printf(\"" + f"${str}%-60s: " + "%u\\n\"" + f", bar[${index}%d]);"
+			println(s)
+			f_print.append(s+"\n")
 		}
 	}
 	if(width==1){
@@ -55,7 +72,9 @@ case class TestMetadataAnno(
 		var index = offset
 		for(i<-0 until num){
 			val str		= get_str(eles(i).data.pathName, eles(i).msg, eles(i).meta)
-			println("printf(\"" + f"${str}%-60s: " + "%u\\n\"" + f", (bar[${index}%d] >> ${bit_index}) & 1);")
+			val s = "printf(\"" + f"${str}%-60s: " + "%u\\n\"" + f", (bar[${index}%d] >> ${bit_index}) & 1);"
+			println(s)
+			f_print.append(s+"\n")
 			bit_index = bit_index + 1
 			if(bit_index == 32){
 				bit_index = 0
@@ -63,6 +82,7 @@ case class TestMetadataAnno(
 			}
 		}
 	}
+	f_print.close()
 	println()
 }
 
