@@ -61,10 +61,10 @@ class AXI_ADDR(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int, LEN
 }
 
 
-class AXI_DATA_W(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int)extends Bundle{
+class AXI_DATA_W(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int)extends HasLast{
 	val data	= UInt(DATA_WIDTH.W)
 	val user	= UInt(USER_WIDTH.W)
-	val last	= UInt(1.W)
+	override val last	= UInt(1.W)
 	val strb	= UInt((DATA_WIDTH/8).W)
 
 	def hbm_init() = {
@@ -82,10 +82,10 @@ class AXI_DATA_W(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int)ex
 	}
 }
 
-class AXI_DATA_R(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int)extends Bundle{
+class AXI_DATA_R(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int)extends HasLast{
 	val data	= UInt(DATA_WIDTH.W)
 	val user	= UInt(USER_WIDTH.W)
-	val last	= UInt(1.W)
+	override val last	= UInt(1.W)
 	val resp	= UInt(2.W)
 	val id		= UInt(ID_WIDTH.W)
 }
