@@ -108,4 +108,14 @@ object Statistics{
 		}
 		everMax(reg_cur)
 	}
+
+	def count(en:Bool)={
+		val reg_cur = RegInit(UInt(32.W),0.U)
+		when(en){
+			reg_cur	:= reg_cur+1.U
+		}.otherwise{
+			reg_cur	:= reg_cur
+		}
+		reg_cur
+	}
 }

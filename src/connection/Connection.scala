@@ -2,6 +2,7 @@ package common.connection
 
 import chisel3._
 import chisel3.util._
+import common.storage.RegSlice
 
 object Connection{
 	def one2many(one:DecoupledIO[Data]) (many:DecoupledIO[Data]*)	= {
@@ -37,4 +38,30 @@ object Connection{
 		in.ready		:= out.ready & en
 	}
 		
+}
+
+class CreditQ(initCredit:Int=0, maxCredit:Int, inStep:Int=1, outStep:Int=1) extends Module{
+	val width = log2Up(maxCredit)+1
+	val io = IO(new Bundle{
+		val in	= Flipped(Decoupled())
+		val out = Decoupled()
+	})
+	val cur_credit = RegInit(UInt(width.W),initCredit.U)
+
+	val out = Wire(Decoupled())
+
+	out.valid	:= cur_credit>=outStep.U
+	io.in.ready		:= cur_credit<=maxCredit.U-inStep.U
+
+	when(out.fire() & io.in.fire()){
+		cur_credit		:= cur_credit + inStep.U - outStep.U
+	}.elsewhen(out.fire()){
+		cur_credit		:= cur_credit - outStep.U
+	}.elsewhen(io.in.fire()){
+		cur_credit		:= cur_credit + inStep.U
+	}.otherwise{
+		cur_credit		:= cur_credit
+	}
+	io.out		<> RegSlice(out)
+	
 }

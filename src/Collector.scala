@@ -24,7 +24,9 @@ case class TestMetadataAnno(
 		if(user_msg!=""){
 			msg = "<"+user_msg+">"
 		}//msg is empty or surrounded by <>
-		var mods = path.split('.').drop(1)
+		var first_tier_mod = path.split('.')(1)
+		var second_tier_mod = path.split('.')(2)
+		var mods = path.split('.').drop(2)
 		var str = msg+meta
 		if(mods.last.startsWith("_")){
 			if(msg==""){
@@ -36,7 +38,7 @@ case class TestMetadataAnno(
 			mods 	= mods.dropRight(1)
 			str		= "."+str
 		}
-		mods.mkString(".")+str
+		(first_tier_mod, second_tier_mod, mods.mkString(".")+str)
 	}
 
 	val isAppend = width==1
@@ -59,21 +61,51 @@ case class TestMetadataAnno(
 		}
 		f_fix.close()
 
+		var last_first_tier_mod = ""
+		var last_second_tier_mod = ""
 		for(i<-0 until num){
-			val str		= get_str(eles(i).data.pathName, eles(i).msg, eles(i).meta)
+			val (first_tier_mod,second_tier_mod,str)		= get_str(eles(i).data.pathName, eles(i).msg, eles(i).meta)
 			val index	= i+offset
 			val s = "printf(\"" + f"${str}%-60s: " + "%u\\n\"" + f", bar[${index}%d]);"
 			println(s)
+			if(last_first_tier_mod != first_tier_mod){
+				last_first_tier_mod = first_tier_mod
+				val s = "printf(\"\\n========================="+ f"${first_tier_mod}" +"========================="  + "\\n\");"
+				f_print.append(s+"\n")
+				last_second_tier_mod = ""
+			}
+			if(last_second_tier_mod != second_tier_mod){	
+				if(last_second_tier_mod != ""){
+					val s = "printf(\"\\n\");"
+					f_print.append(s+"\n")
+				}
+				last_second_tier_mod = second_tier_mod
+			}
 			f_print.append(s+"\n")
 		}
 	}
 	if(width==1){
 		var bit_index = 0
 		var index = offset
+		var last_first_tier_mod = ""
+		var last_second_tier_mod = ""
 		for(i<-0 until num){
-			val str		= get_str(eles(i).data.pathName, eles(i).msg, eles(i).meta)
+			val (first_tier_mod,second_tier_mod,str)		= get_str(eles(i).data.pathName, eles(i).msg, eles(i).meta)
 			val s = "printf(\"" + f"${str}%-60s: " + "%u\\n\"" + f", (bar[${index}%d] >> ${bit_index}) & 1);"
 			println(s)
+			if(last_first_tier_mod != first_tier_mod){
+				last_first_tier_mod = first_tier_mod
+				val s = "printf(\"\\n========================="+ f"${first_tier_mod}" +"========================="  + "\\n\");"
+				f_print.append(s+"\n")
+				last_second_tier_mod = ""
+			}
+			if(last_second_tier_mod != second_tier_mod){	
+				if(last_second_tier_mod != ""){
+					val s = "printf(\"\\n\");"
+					f_print.append(s+"\n")
+				}
+				last_second_tier_mod = second_tier_mod
+			}
 			f_print.append(s+"\n")
 			bit_index = bit_index + 1
 			if(bit_index == 32){
