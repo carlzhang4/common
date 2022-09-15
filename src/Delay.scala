@@ -11,6 +11,11 @@ object Delay{
 	def apply[T<:Data](gen:T, n:Int) = {
 		Module(new Delay(gen,n))
 	}
+	def apply[T<:Data](in:DecoupledIO[T], n:Int) = {
+		val t = Module(new Delay(chiselTypeOf(in.bits),n))
+		t.io.in <> in
+		t.io.out
+	}
 	class Delay[T<:Data](val gen:T, val n:Int)extends Module{
 		val io = IO(new Bundle{
 			val in		= Flipped(Decoupled(gen))
