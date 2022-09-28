@@ -84,7 +84,7 @@ object SerialRouter{
 		}
 
 		when(is_head === 1.U){
-			idx			:= io.idx
+			idx			:= in.bits.idx
 		}
 
 		in.ready		:= 0.U
@@ -92,7 +92,7 @@ object SerialRouter{
 			out(i).bits			:= in.bits.genbits
 			out(i).valid		:= 0.U
 			when(is_head === 1.U){
-				when(io.idx === i.U){
+				when(in.bits.idx === i.U){
 					out(i).valid	:= in.valid
 					in.ready		:= out(i).ready
 				}
