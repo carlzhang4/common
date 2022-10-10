@@ -3,7 +3,22 @@ package common.connection
 import chisel3._
 import chisel3.util._
 import common.storage.RegSlice
+import common.Collector
 
+object GrantIndex{
+	def apply(req:UInt,en:Bool) = {
+		val n 				= req.getWidth
+		val base            = RegInit(UInt(n.W),1.U)
+		val double_req      = Cat(req,req)
+		val double_grant	= double_req & ~(double_req-base)
+		val grant			= double_grant(n-1,0) | double_grant(2*n-1,n)
+		val grant_index		= OHToUInt(grant)
+		when(en){
+			base			:= Cat(base(n-2,0),base(n-1))
+		}
+		grant_index
+	}
+}
 object Connection{
 	def one2many(one:DecoupledIO[Data]) (many:DecoupledIO[Data]*)	= {
 		one.ready	:= many.map(_.ready).reduce(_ & _)
@@ -40,24 +55,27 @@ object Connection{
 		
 }
 
-class CreditQ(initCredit:Int=0, maxCredit:Int, inStep:Int=1, outStep:Int=1) extends Module{
-	val width = log2Up(maxCredit)+1
+class CreditQ(initCredit:Int=0, inStep:Int=1, outStep:Int=1) extends Module{
 	val io = IO(new Bundle{
 		val in	= Flipped(Decoupled())
 		val out = Decoupled()
+		val maxCredit = Input(UInt(32.W))
 	})
-	val cur_credit = RegInit(UInt(width.W),initCredit.U)
+
+	val realMaxCredit = io.maxCredit - 4.U//4 is absorbed by regslice
+	val cur_credit = RegInit(UInt(32.W),initCredit.U)
 
 	val out = Wire(Decoupled())
+	val in	= RegSlice(io.in)
 
-	out.valid	:= cur_credit>=outStep.U
-	io.in.ready		:= cur_credit<=maxCredit.U-inStep.U
+	out.valid	:= cur_credit >= outStep.U
+	in.ready	:= cur_credit <= realMaxCredit-inStep.U 
 
-	when(out.fire() & io.in.fire()){
+	when(out.fire() & in.fire()){
 		cur_credit		:= cur_credit + inStep.U - outStep.U
 	}.elsewhen(out.fire()){
 		cur_credit		:= cur_credit - outStep.U
-	}.elsewhen(io.in.fire()){
+	}.elsewhen(in.fire()){
 		cur_credit		:= cur_credit + inStep.U
 	}.otherwise{
 		cur_credit		:= cur_credit

@@ -8,10 +8,64 @@ import common.ToZero
 
 object XArbiter{
 	def apply[T<:Data](num:Int)(gen:T, n:Int) = {
-		Seq.fill(num)(Module(new Arbiter(gen,n)))
+		Seq.fill(num)(Module(new XArbiter(gen,n)))
 	}
 	def apply[T<:Data](gen:T, n:Int) = {
-		Module(new Arbiter(gen,n))
+		Module(new XArbiter(gen,n))
+	}
+	def apply[T<:Data](seq:Seq[Int])(ins:Seq[DecoupledIO[T]],out:DecoupledIO[T]) = {
+		val gen = chiselTypeOf(out.bits)
+		def connect(node:XArbiter[T], seq:Seq[Int]):Seq[XArbiter[T]] = {
+			val num = seq(0)
+			val fanout = seq(1)
+			val leaf_nodes = Seq.fill(num)(Module(new XArbiter(gen, fanout)))
+
+			for(i<-0 until num){
+				leaf_nodes(i).io.out	<> node.io.in(i)
+			}
+			if(seq.size>1){
+				return leaf_nodes
+			}else{
+				return leaf_nodes.foldLeft(Seq[XArbiter[T]]())((s,a) => s++connect(a,seq.drop(1)))
+			}
+		}
+		val node		= Module(new XArbiter(gen,seq(0)))
+		val leaf_nodes	= connect(node,seq)
+		node.io.out		<> out
+		for(i <-0 until leaf_nodes.size){
+			for(j <-0 until seq.last){
+				val index	= i*seq.last+j
+				ins(index)	<> leaf_nodes(i).io.in(j)
+			}
+		}
+	}
+
+	class XArbiter[T<:Data](val gen:T, val n:Int) extends Module{
+		val io = IO(new Bundle{
+			val in = Vec(n,Flipped(Decoupled(gen)))
+			val out = Decoupled(gen)
+		})
+		val in	= {
+			for(i<-0 until n)yield{
+				val tmp = RegSlice(io.in(i))
+				tmp
+			}	
+		}
+		val out = Wire(Decoupled(gen))
+
+		val grant_index		= GrantIndex(Cat(in.map(_.valid).reverse), out.fire())
+
+		out.valid			:= 0.U
+		out.bits			:= in(0).bits
+		for(i <- 0 until n){
+			in(i).ready	:=	0.U
+			when(grant_index === i.U){
+				in(i).ready		:= out.ready
+				out.valid		:= in(i).valid
+				out.bits 		:= in(i).bits
+			}
+		}
+		io.out	<> RegSlice(out)
 	}
 }
 
@@ -37,20 +91,11 @@ object SerialArbiter{
 		}
 		val out = Wire(Decoupled(gen))
 
-		val req				= Cat(in.map(_.valid).reverse)//with reverse, port 0 is at the LSB
-		val base			= RegInit(UInt(n.W),1.U)
-		val double_req		= Cat(req,req)
-		val double_grant	= double_req & ~(double_req-base)
-		val grant			= double_grant(n-1,0) | double_grant(2*n-1,n)
-		val grant_index		= OHToUInt(grant)
+		val grant_index		= GrantIndex(Cat(in.map(_.valid).reverse), out.fire() && out.bits.last===1.U)
 
 		val is_head 		= RegInit(UInt(1.W),1.U)
 		val idx				= Wire(UInt(log2Up(n).W))
 		val last_idx		= RegInit(UInt(log2Up(n).W),0.U)
-
-		when(out.fire() && out.bits.last===1.U){
-			base			:= Cat(base(n-2,0),base(n-1))
-		}
 
 		when(is_head===1.U){
 			idx				:= grant_index
@@ -110,13 +155,8 @@ object CompositeArbiter{
 		val out_meta = Wire(Decoupled(genMeta))
 		val out_data = Wire(Decoupled(genData))
 
-		val req				= Cat(in_meta.map(_.valid).reverse)//with reverse, port 0 is at the LSB
-		val base			= RegInit(UInt(n.W),1.U)
-		val double_req		= Cat(req,req)
-		val double_grant	= double_req & ~(double_req-base)
-		val grant			= double_grant(n-1,0) | double_grant(2*n-1,n)
-		val grant_index		= OHToUInt(grant)
-
+		val grant_index		= GrantIndex(Cat(in_meta.map(_.valid).reverse), out_data.fire()&&out_data.bits.last===1.U)
+		
 		val last_idx		= RegInit(UInt(log2Up(n).W),0.U)
 
 		val sFirst :: sMiddle :: Nil = Enum(2)
@@ -137,9 +177,6 @@ object CompositeArbiter{
 					state		:= sFirst
 				}
 			}
-		}
-		when(out_data.fire()&&out_data.bits.last===1.U){
-			base		:= Cat(base(n-2,0),base(n-1))
 		}
 
 		out_meta.valid			:= 0.U
