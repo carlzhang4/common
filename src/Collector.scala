@@ -26,7 +26,7 @@ case class TestMetadataAnno(
 		}//msg is empty or surrounded by <>
 		var first_tier_mod = path.split('.')(1)
 		var second_tier_mod = path.split('.')(2)
-		var mods = path.split('.').drop(2)
+		var mods = path.split('.').drop(Collector.MODS_DROP_NUM)
 		var str = msg+meta
 		if(mods.last.startsWith("_")){
 			if(msg==""){
@@ -124,6 +124,10 @@ class Element(var data:Data,var msg:String,var meta:String,var fix_str:String){
 
 object Collector{
 	def MAX_NUM = 512
+	var MODS_DROP_NUM = 2
+	def show_more()={
+		MODS_DROP_NUM = 1
+	}
 	val widths	= Set(1,32)
 	var eles	= widths.map(_->new Array[Element](MAX_NUM)).toMap
 	var idxs	= collection.mutable.Map(widths.map(_->0).toSeq:_*)
@@ -132,7 +136,15 @@ object Collector{
 		val width = data.getWidth
 		val unique_id = "report_w"+width+"_"+idxs(width)
 		BoringUtils.addSource(data,unique_id,true,true)
-		eles(width)(idxs(width)) = new Element(full_data,msg,meta,fix_str)
+		var fix_str_unique = fix_str
+		if(fix_str_unique!=""){
+			for(i <-0 until idxs(width)){
+				if(fix_str == eles(width)(i).fix_str){
+					fix_str_unique = fix_str+"_DUP"
+				}
+			}
+		}
+		eles(width)(idxs(width)) = new Element(full_data,msg,meta,fix_str_unique)
 		idxs(width) = idxs(width)+1
 		if(idxs(width) >= MAX_NUM){
 			throw new Exception("Report number exceeds")

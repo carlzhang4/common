@@ -2,6 +2,7 @@ package common
 
 import chisel3._
 import chisel3.util._
+import chisel3.experimental.{requireIsChiselType, DataMirror, Direction}
 
 object ToZero{
 	// def apply[T<:Bundle](x:T):Unit={
@@ -14,6 +15,17 @@ object ToZero{
 
 	def apply[T<:Data](v:Vec[T]):Unit={
 		v.foreach(x => apply(x))
+	}
+}
+
+object Init{
+	def apply[T<:Data](x:DecoupledIO[T])={
+		if(DataMirror.directionOf(x.bits) == Direction.Output){
+			x.ready		:= 1.U
+		}else{
+			x.bits		:= 0.U.asTypeOf(x.bits)
+			x.valid		:= 0.U
+		}
 	}
 }
 
