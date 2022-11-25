@@ -123,6 +123,7 @@ class Element(var data:Data,var msg:String,var meta:String,var fix_str:String){
 }
 
 object Collector{
+	var fix_str_map = scala.collection.mutable.Map[String, Int]()
 	def MAX_NUM = 512
 	var MODS_DROP_NUM = 2
 	def show_more()={
@@ -138,10 +139,11 @@ object Collector{
 		BoringUtils.addSource(data,unique_id,true,true)
 		var fix_str_unique = fix_str
 		if(fix_str_unique!=""){
-			for(i <-0 until idxs(width)){
-				if(fix_str == eles(width)(i).fix_str){
-					fix_str_unique = fix_str+"_DUP"
-				}
+			if(fix_str_map.contains(fix_str)){
+				fix_str_unique = fix_str+"_DUP_"+fix_str_map(fix_str)
+				fix_str_map(fix_str) = fix_str_map(fix_str)+1
+			}else{
+				fix_str_map = fix_str_map += (fix_str -> 1)
 			}
 		}
 		eles(width)(idxs(width)) = new Element(full_data,msg,meta,fix_str_unique)
