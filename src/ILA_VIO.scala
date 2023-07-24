@@ -36,7 +36,7 @@ class BaseILA(seq:Seq[Data])extends BlackBox{
 		val p = new Pack
 		val count = AnnotationCount.count
 		if (!DebugFileName.enabled) {
-			annotate(new ChiselAnnotation {def toFirrtl = DebugFileNameAnno(seq(0).toTarget)})
+			annotate(new ChiselAnnotation {def toFirrtl = DebugFileNameAnno()})
 			DebugFileName.enabled = true
 		}
 		seq.foreach(data => annotate(new ChiselAnnotation {def toFirrtl = MyMetadataAnno(count, name, seq.length, p, data.toTarget)}))
@@ -57,7 +57,7 @@ class BaseVIO(seq:Seq[Data])extends BlackBox{
 		val p = new Pack
 		val count = AnnotationCount.count
 		if (!DebugFileName.enabled) {
-			annotate(new ChiselAnnotation {def toFirrtl = DebugFileNameAnno(seq(0).toTarget)})
+			annotate(new ChiselAnnotation {def toFirrtl = DebugFileNameAnno()})
 			DebugFileName.enabled = true
 		}
 		seq.foreach(data => annotate(new ChiselAnnotation {def toFirrtl = MyMetadataAnno(count, name, seq.length, p, data.toTarget)}))
@@ -74,8 +74,7 @@ case class MyMetadataAnno(count:Int, name:String, l:Int, p:Pack, target:Referenc
 	}
 }
 
-case class DebugFileNameAnno(target:ReferenceTarget) extends SingleTargetAnnotation[ReferenceTarget] with CustomFileEmission {
-	def duplicate(n: ReferenceTarget) = this
+case class DebugFileNameAnno() extends NoTargetAnnotation with CustomFileEmission {
 
 	protected def baseFileName(annotations: AnnotationSeq): String = {
 		return Viewer.view[ChiselOptions](annotations).outputFile.get
