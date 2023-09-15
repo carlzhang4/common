@@ -14,6 +14,8 @@ class CMACPin extends Bundle{
 }
 
 class DDRPin extends Bundle{
+    val ddr0_sys_100M_p=Input(Clock())  
+    val ddr0_sys_100M_n=Input(Clock()) 
     val act_n       =Output(UInt(1.W))                      
     val adr         =Output(UInt(17.W))               
     val ba          =Output(UInt(2.W))             

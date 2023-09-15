@@ -4,6 +4,7 @@ import chisel3._
 import chisel3.util._
 import common.CMACPin
 import common.DDRPin
+import common.axi._
 
 class QDMAStaticIO(VIVADO_VERSION:String, PCIE_WIDTH:Int, SLAVE_BRIDGE:Boolean, AXI_BRIDGE:Boolean) extends Bundle{
     val axi_aclk                    = Output(UInt(1.W))
@@ -216,6 +217,12 @@ class QDMAStaticIO(VIVADO_VERSION:String, PCIE_WIDTH:Int, SLAVE_BRIDGE:Boolean, 
     val st_rx_msg_valid	= if (SLAVE_BRIDGE) {Some(Output(UInt(1.W)))} else None
 }
 
+class DDRPort extends Bundle {
+    val clk = Input(Clock())
+    val rst = Input(Bool())
+    val axi = new AXI(34,512,4,0,8)
+}
+
 class AlveoStaticIO(
     VIVADO_VERSION:String, 
     QDMA_PCIE_WIDTH:Int, 
@@ -229,8 +236,8 @@ class AlveoStaticIO(
     val sysClk      = Output(Clock())
     val cmacPin     = if (ENABLE_CMAC_1) {Some(Flipped(new CMACPin()))} else None
     val cmacPin2    = if (ENABLE_CMAC_2) {Some(Flipped(new CMACPin()))} else None
-    val ddrPin      = if (ENABLE_DDR_1) {Some(Flipped(new DDRPin()))} else None
-    val ddrPin2     = if (ENABLE_DDR_2) {Some(Flipped(new DDRPin()))} else None
+    val ddrPort     = if (ENABLE_DDR_1) {Some(Flipped(new DDRPort()))} else None
+    val ddrPort2    = if (ENABLE_DDR_2) {Some(Flipped(new DDRPort()))} else None
     
     val qdma = new QDMAStaticIO(
         VIVADO_VERSION  = VIVADO_VERSION,
