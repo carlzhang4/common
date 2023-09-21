@@ -66,7 +66,7 @@ case class TestMetadataAnno(
 		for(i<-0 until num){
 			val (first_tier_mod,second_tier_mod,str)		= get_str(eles(i).data.pathName, eles(i).msg, eles(i).meta)
 			val index	= i+offset
-			val s = "printf(\"" + f"${str}%-60s: " + "%u\\n\"" + f", bar[${index}%d]);"
+			val s = "fmt::println(\"" + f"${str}%-60s: " + "{}\"" + f", fpga_ctl->readReg(512+${index}%d));"
 			println(s)
 			if(last_first_tier_mod != first_tier_mod){
 				last_first_tier_mod = first_tier_mod
@@ -91,7 +91,7 @@ case class TestMetadataAnno(
 		var last_second_tier_mod = ""
 		for(i<-0 until num){
 			val (first_tier_mod,second_tier_mod,str)		= get_str(eles(i).data.pathName, eles(i).msg, eles(i).meta)
-			val s = "printf(\"" + f"${str}%-60s: " + "%u\\n\"" + f", (bar[${index}%d] >> ${bit_index}) & 1);"
+			val s = "fmt::println(\"" + f"${str}%-60s: " + "{}\"" + f", (fpga_ctl->readReg(512+${index}%d) >> ${bit_index}) & 1);"
 			println(s)
 			if(last_first_tier_mod != first_tier_mod){
 				last_first_tier_mod = first_tier_mod
