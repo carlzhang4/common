@@ -228,13 +228,14 @@ class AlveoStaticIO(
     QDMA_PCIE_WIDTH:Int, 
     QDMA_SLAVE_BRIDGE:Boolean=false, 
     QDMA_AXI_BRIDGE:Boolean=true,
+    ENABLE_CMAC_CLOCK:Boolean=true,     // For compatibility to old projects.
     ENABLE_CMAC_1:Boolean=false,
     ENABLE_CMAC_2:Boolean=false,
     ENABLE_DDR_1:Boolean=false,
     ENABLE_DDR_2:Boolean=false
 ) extends Bundle {
     val sysClk      = Output(Clock())
-    val cmacClk     = Output(Clock())
+    val cmacClk     = if (ENABLE_CMAC_CLOCK) {Output(Clock())} else None
     val cmacPin     = if (ENABLE_CMAC_1) {Some(Flipped(new CMACPin()))} else None
     val cmacPin2    = if (ENABLE_CMAC_2) {Some(Flipped(new CMACPin()))} else None
     val ddrPort     = if (ENABLE_DDR_1) {Some(Flipped(new DDRPort()))} else None
