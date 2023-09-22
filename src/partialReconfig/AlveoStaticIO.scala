@@ -235,7 +235,7 @@ class AlveoStaticIO(
     ENABLE_DDR_2:Boolean=false
 ) extends Bundle {
     val sysClk      = Output(Clock())
-    val cmacClk     = if (ENABLE_CMAC_CLOCK) {Output(Clock())} else None
+    val cmacClk     = if (ENABLE_CMAC_CLOCK) {Some(Output(Clock()))} else None
     val cmacPin     = if (ENABLE_CMAC_1) {Some(Flipped(new CMACPin()))} else None
     val cmacPin2    = if (ENABLE_CMAC_2) {Some(Flipped(new CMACPin()))} else None
     val ddrPort     = if (ENABLE_DDR_1) {Some(Flipped(new DDRPort()))} else None
