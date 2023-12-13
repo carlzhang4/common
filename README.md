@@ -12,11 +12,12 @@ General modules in Chisel
       - [Delay](#delay)
       - [BaseILA](#baseila)
       - [BaseVIO](#basevio)
-      - [LEADING_ZERO_COUNTER](#leading_zero_counter)
+      - [LEADING\_ZERO\_COUNTER](#leading_zero_counter)
       - [Reporter](#reporter)
       - [ToZero](#tozero)
+      - [Floating Point](#floating-point)
     - [AXI Subpackage](#axi-subpackage)
-      - [Connect_AXI](#connect_axi)
+      - [Connect\_AXI](#connect_axi)
       - [AXI2Reg](#axi2reg)
       - [PoorAXIL2Reg](#pooraxil2reg)
     - [Connection Subpackage](#connection-subpackage)
@@ -76,6 +77,17 @@ About tcl generation, see [here](#elaboration-and-benchmarking).
 #### Reporter
 
 #### ToZero
+
+#### Floating Point
+
+Floating point-related modules handles conversion of different floating point formats. Up to now we only support conversion between int16 and bf16. More diverse format support is comming soon. 
+
+The floating point modules converts data format in a fully-pipelined stream-based manner. Each cycle they accept a number vector and output a number vector. Current modules typically have 2 parameters, which is defined as below.
+
+| Parameter    | Description |
+|--------------|-------------|
+| VEC_LEN      | To save resource, each module is able to convert a vector of multiple numbers in a cycle. VEC_LEN defines the length of the vector. For instance, a int16 to bf16 module of VEC_LEN 32 accept data stream of width 16*32=512. |
+| SCALE_FACTOR | A floating-point number may multiply a factor and then floored into a integer. That's how scale factor works. In hardware, a scale factor should be a power of 2. Scale factor in this module represents the exponent. For example, if SCALE_FACTOR is set to 12, then the actual scale factor is 2^12=4096. |
 
 ### AXI Subpackage
 
