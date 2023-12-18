@@ -10,8 +10,8 @@ object XArbiter{
 	def apply[T<:Data](num:Int)(gen:T, n:Int) = {
 		Seq.fill(num)(Module(new XArbiter(gen,n)))
 	}
-	def apply[T<:Data](gen:T, n:Int) = {
-		Module(new XArbiter(gen,n))
+	def apply[T<:Data](gen:T, n:Int, exportIdx:Boolean=false) = {
+		Module(new XArbiter(gen,n,exportIdx))
 	}
 	def apply[T<:Data](seq:Seq[Int])(ins:Seq[DecoupledIO[T]],out:DecoupledIO[T]) = {
 		val gen = chiselTypeOf(out.bits)
@@ -40,10 +40,11 @@ object XArbiter{
 		}
 	}
 
-	class XArbiter[T<:Data](val gen:T, val n:Int) extends Module{
+	class XArbiter[T<:Data](val gen:T, val n:Int, exportIdx:Boolean=false) extends Module{
 		val io = IO(new Bundle{
 			val in = Vec(n,Flipped(Decoupled(gen)))
 			val out = Decoupled(gen)
+			val idx = if (exportIdx) {Some(Valid(UInt(log2Up(n).W)))} else None
 		})
 		val in	= {
 			for(i<-0 until n)yield{
@@ -66,6 +67,12 @@ object XArbiter{
 			}
 		}
 		io.out	<> RegSlice(out)
+
+		// Export index
+		if (exportIdx) {
+			io.idx.get.valid	:= out.fire
+			io.idx.get.bits		:= grant_index
+		}
 	}
 }
 
@@ -127,16 +134,17 @@ object SerialArbiter{
 }
 
 object CompositeArbiter{
-	def apply[TMeta<:Data,TData<:HasLast](genMeta:TMeta, genData:TData, n:Int) = {
-		Module(new CompositeArbiter(genMeta,genData,n))
+	def apply[TMeta<:Data,TData<:HasLast](genMeta:TMeta, genData:TData, n:Int, exportIdx:Boolean=false) = {
+		Module(new CompositeArbiter(genMeta,genData,n,exportIdx))
 	}
 
-	class CompositeArbiter[TMeta<:Data,TData<:HasLast](val genMeta:TMeta, val genData:TData, val n:Int)extends Module{
+	class CompositeArbiter[TMeta<:Data,TData<:HasLast](val genMeta:TMeta, val genData:TData, val n:Int, val exportIdx:Boolean=false)extends Module{
 		val io = IO(new Bundle{
 			val in_meta 	= Vec(n,Flipped(Decoupled(genMeta)))
 			val in_data 	= Vec(n,Flipped(Decoupled(genData)))
 			val out_meta	= Decoupled(genMeta)
 			val out_data	= Decoupled(genData)
+			val idx			= if (exportIdx) {Some(Valid(UInt(log2Up(n).W)))} else None
 		})
 
 		val in_meta	= {
@@ -202,6 +210,13 @@ object CompositeArbiter{
 		}
 		io.out_meta	<> RegSlice(out_meta)
 		io.out_data	<> RegSlice(out_data)
+
+		// Export inner idx
+		
+		if (exportIdx) {
+			io.idx.get.valid	:= out_meta.fire()
+			io.idx.get.bits		:= grant_index
+		}
 
 	}
 }
