@@ -34,8 +34,8 @@ object AXIArbiter {
         )
 
         for (i <- 0 until n) {
-            wrAbt.io.in_meta    <> io.in(i).aw
-            wrAbt.io.in_data    <> io.in(i).w
+            wrAbt.io.in_meta(i) <> io.in(i).aw
+            wrAbt.io.in_data(i) <> io.in(i).w
         }
         io.out.aw   <> wrAbt.io.out_meta
         io.out.w    <> wrAbt.io.out_data
@@ -50,7 +50,12 @@ object AXIArbiter {
             regSlice.io.upStream    <> inResp(i)
             regSlice.io.downStream  <> io.in(i).b
         }
-        outResp <> RegSlice(io.out.b)
+
+        {
+            val regSlice = Module(new RegSlice(new AXI_BACK(ADDR_WIDTH, DATA_WIDTH, ID_WIDTH, USER_WIDTH)))
+            regSlice.io.upStream    <> io.out.b
+            regSlice.io.downStream  <> outResp
+        }
 
         val respFifo    = XQueue(UInt(log2Up(n).W), 256)
         
@@ -73,7 +78,11 @@ object AXIArbiter {
         val inRead      = Wire(Vec(n, Decoupled(new AXI_DATA_R(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH))))
         val outRead     = Wire(Decoupled(new AXI_DATA_R(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH)))
 
-        outRead     <> RegSlice(io.out.r)
+        {
+            val regSlice = Module(new RegSlice(new AXI_DATA_R(ADDR_WIDTH,DATA_WIDTH,ID_WIDTH,USER_WIDTH)))
+            regSlice.io.upStream    <> io.out.r
+            regSlice.io.downStream  <> outRead
+        }
         io.out.ar   <> RegSlice(outReadAddr)
         for (i <- 0 until n) {
             io.in(i).r      <> RegSlice(inRead(i))
@@ -98,7 +107,7 @@ object AXIArbiter {
         
         for (i <- 0 until n) {
             inRead(i).bits  := outRead.bits
-            inRead(i).ready := outRead.ready && readFifo.io.out.valid && (readFifo.io.out.bits === i.U)
+            inRead(i).valid := outRead.valid && readFifo.io.out.valid && (readFifo.io.out.bits === i.U)
         }
 
         outRead.ready   := inRead(readFifo.io.out.bits).ready && readFifo.io.out.valid
