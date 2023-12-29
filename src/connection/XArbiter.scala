@@ -220,3 +220,43 @@ object CompositeArbiter{
 
 	}
 }
+
+object XArbiterWithInputId {
+	def apply[T<:Data](num:Int)(gen:T, n:Int) = {
+		Seq.fill(num)(Module(new XArbiterWithInputId(gen,n)))
+	}
+	def apply[T<:Data](gen:T, n:Int) = {
+		Module(new XArbiterWithInputId(gen,n))
+	}
+
+	class XArbiterWithInputId[T<:Data](val gen:T, val n:Int) extends Module {
+		val io = IO(new Bundle{
+			val in = Vec(n,Flipped(Decoupled(gen)))
+			val out = Decoupled(gen)
+			val idx = Flipped(Decoupled(UInt(log2Up(n).W)))
+		})
+		val in = Wire(Vec(n, Decoupled(gen)))
+
+		for (i<-0 until n) {
+			val regSlice	= Module(new RegSlice(gen))
+			regSlice.io.upStream	<> io.in(i)
+			regSlice.io.downStream	<> in(i)
+		}	
+
+		val out = Wire(Decoupled(gen))
+
+		io.idx.ready	:= in(io.idx.bits).valid & out.ready
+
+		out.valid			:= 0.U
+		out.bits			:= in(0).bits
+		for(i <- 0 until n){
+			in(i).ready	:=	0.U
+			when(io.idx.bits === i.U){
+				in(i).ready		:= out.ready & io.idx.valid
+				out.valid		:= in(i).valid & io.idx.valid
+				out.bits 		:= in(i).bits
+			}
+		}
+		io.out	<> RegSlice(out)
+	}
+}
