@@ -3,6 +3,8 @@ package common
 import chisel3._
 import chisel3.util._
 import chisel3.experimental.{requireIsChiselType, DataMirror, Direction}
+import chisel3.experimental.{annotate, ChiselAnnotation}
+import firrtl.AttributeAnnotation
 
 object ToZero{
 	// def apply[T<:Bundle](x:T):Unit={
@@ -130,4 +132,14 @@ object Statistics{
 		}
 		reg_cur
 	}
+}
+
+object VivadoMarkDontTouch {
+    def apply[T <: Data](signal : T) = {
+        annotate(new ChiselAnnotation {
+            override def toFirrtl = AttributeAnnotation(signal.toTarget, "DONT_TOUCH = \"yes\"")
+        })
+
+        signal
+    }
 }
