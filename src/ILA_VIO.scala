@@ -67,7 +67,7 @@ class BaseVIO(seq:Seq[Data])extends BlackBox{
 
 case class MyMetadataAnno(count:Int, name:String, l:Int, p:Pack, target:ReferenceTarget) extends SingleTargetAnnotation[ReferenceTarget] {
 	def duplicate(n: ReferenceTarget) = this //this.copy(n)
-	p.targets = p.targets :+ target.serialize.split('>')(1).replace('.','_').replace('[','_').replace("]","")
+	p.targets = p.targets :+ target.serialize.split('|')(1).replace('>','_').replace('.','_').replace('[','_').replace("]","")
 	if(l == p.targets.length){
 		p.targets.foreach(str => DebugFileName.str += str+"\n")
 		DebugFileName.str += name+":\n"
