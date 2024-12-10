@@ -155,13 +155,12 @@ class AXIStreamConcat (
 
     val lowLen  = Wire(UInt((log2Down(WIDTH)+1).W))
     val highLen = Wire(UInt((log2Down(WIDTH)+1).W))
+    val sumLen  = Wire(UInt((log2Down(WIDTH)+2).W))
     val offset  = RegInit(0.U(log2Up(WIDTH).W))
     val tmpReg  = RegInit(0.U(WIDTH.W))
 
     lowLen  := Mux(inLow.valid, inLow.bits.len, 0.U)
     highLen := Mux(inHigh.valid, inHigh.bits.len, 0.U)
-
-    val sumLen  = Wire(UInt((log2Down(WIDTH)+2).W))
     sumLen  := Cat(0.U(1.W), lowLen) + highLen
 
     when (state === sLow && ~inLow.bits.last.asBool) {
@@ -193,10 +192,10 @@ class AXIStreamConcat (
         io.out.bits.data    := inLow.bits.data
         io.out.bits.keep    := -1.S((WIDTH/8).W).asUInt
         io.out.bits.last    := 0.U
-        tmpReg  := 0.U
-        offset  := 0.U
         when (io.out.fire) {
             state   := sHigh
+            tmpReg  := 0.U
+            offset  := 0.U
         }
     }.elsewhen (state === sLow/* && inLow.bits.last.asBool && (lowLen =/= WIDTH.U)*/) {
         // Case 4: Last beat of low data as well as first beat of high data.
@@ -207,14 +206,18 @@ class AXIStreamConcat (
         for (i <- 1 until WIDTH) {
             when (lowLen === i.U) {
                 io.out.bits.data    := Cat(inHigh.bits.data, inLow.bits.data(i-1, 0))
-                tmpReg  := inHigh.bits.data(WIDTH-1, WIDTH-i)
             }
         }
         io.out.bits.keep    := -1.S((WIDTH/8).W).asUInt
         io.out.bits.last    := 0.U
-        offset  := lowLen
         when (io.out.fire) {
             state   := sHigh
+            offset  := lowLen
+            for (i <- 1 until WIDTH) {
+                when (lowLen === i.U) {
+                    tmpReg  := inHigh.bits.data(WIDTH-1, WIDTH-i)
+                }
+            }
         }
     }.elsewhen (state === sHigh && ~inHigh.bits.last.asBool) {
         // Case 5: High data is not last.
@@ -225,11 +228,17 @@ class AXIStreamConcat (
         for (i <- 1 until WIDTH) {
             when (offset === i.U) {
                 io.out.bits.data    := Cat(inHigh.bits.data, tmpReg(i-1, 0))
-                tmpReg  := inHigh.bits.data(WIDTH-1, WIDTH-i)
             }
         }
         io.out.bits.keep    := -1.S((WIDTH/8).W).asUInt
         io.out.bits.last    := 0.U
+        when (io.out.fire) {
+            for (i <- 1 until WIDTH) {
+                when (offset === i.U) {
+                    tmpReg  := inHigh.bits.data(WIDTH-1, WIDTH-i)
+                }
+            }
+        }
     }.elsewhen (state === sHigh/* && inHigh.bits.last.asBool*/ && (offset + highLen > WIDTH.U)) {
         // Case 6: Last beat of high data and exceeds full output space, i.e., still a last beat remains.
         inLow.ready         := false.B
@@ -239,14 +248,18 @@ class AXIStreamConcat (
         for (i <- 1 until WIDTH) {
             when (offset === i.U) {
                 io.out.bits.data    := Cat(inHigh.bits.data, tmpReg(i-1, 0))
-                tmpReg  := inHigh.bits.data(WIDTH-1, WIDTH-i)
             }
         }
         io.out.bits.keep    := -1.S((WIDTH/8).W).asUInt
         io.out.bits.last    := 0.U
-        offset  := Cat(0.U(1.W), offset) + highLen - WIDTH.U
         when (io.out.fire) {
             state   := sLast
+            offset  := Cat(0.U(1.W), offset) + highLen - WIDTH.U
+            for (i <- 1 until WIDTH) {
+                when (offset === i.U) {
+                    tmpReg  := inHigh.bits.data(WIDTH-1, WIDTH-i)
+                }
+            }
         }
     }.elsewhen (state === sHigh /*&& inHigh.bits.last.asBool && (offset + highLen <= WIDTH.U)*/) {
         // Case 7: Last beat of high data and fits in the output space.
@@ -278,7 +291,13 @@ class AXIStreamConcat (
     }
 }
 
-class AXIWidthConversion (
+// New version of width conversion module. 
+// For timing issues, a rule for designing such modules is that one should 
+// ensure that the input width is divisible by output width or vice versa.
+// So, the idea is that we first convert input data width to least common
+// multiple of input and output width, and then convert it to output width.
+
+class AXIStreamWidthConversion (
     IN_WIDTH    : Int,
     OUT_WIDTH   : Int
 ) extends Module {
@@ -289,7 +308,7 @@ class AXIWidthConversion (
 
     val in      = RegSlice(io.in)
 
-    val core    = Module(new WidthConversion(IN_WIDTH = IN_WIDTH, OUT_WIDTH = OUT_WIDTH))
+    val core    = Module(new WidthConversionInner(IN_WIDTH = IN_WIDTH, OUT_WIDTH = OUT_WIDTH))
 
     core.io.in.bits.counter := parseKeepSignal(in.bits.keep, 512)
     core.io.in.bits.data    := in.bits.data
@@ -304,6 +323,43 @@ class AXIWidthConversion (
     core.io.out.ready       := io.out.ready
 }
 
+// An old version of width conversion module. It performs direct conversion
+// between upstream and downstream ports, but comes with a cost of bad timing.
+// This module easily causes negative time slack, so be careful when using it.
+
+class AXIStreamWidthConversionAlter (
+    IN_WIDTH    : Int,
+    OUT_WIDTH   : Int
+) extends Module {
+    val io = IO(new Bundle{
+        val in     = Flipped(Decoupled(AXIS(IN_WIDTH)))
+        val out    = Decoupled(AXIS(OUT_WIDTH))
+    })
+
+    val in      = RegSlice(io.in)
+
+    val core    = Module(new WidthConversionInnerAlter(IN_WIDTH = IN_WIDTH, OUT_WIDTH = OUT_WIDTH))
+
+    core.io.in.bits.counter := parseKeepSignal(in.bits.keep, 512)
+    core.io.in.bits.data    := in.bits.data
+    core.io.in.bits.last    := in.bits.last
+    core.io.in.valid        := in.valid
+    in.ready                := core.io.in.ready
+
+    io.out.bits.keep        := genKeepSignal(core.io.out.bits.counter, 512)
+    io.out.bits.data        := core.io.out.bits.data
+    io.out.bits.last        := core.io.out.bits.last
+    io.out.valid            := core.io.out.valid
+    core.io.out.ready       := io.out.ready
+}
+
+// ==========================================================================
+// 
+//                              PRIVATE ZONE!!
+// 
+//        Below are internal modules for use. DO NOT USE DIRECTLY!!!
+//
+// ==========================================================================
 
         
 // Auxiliary private interface for processing. 
@@ -315,8 +371,146 @@ class DataStreamWithCounterLast (
     val counter = UInt(COUNTER_WIDTH.W)
 }
 
-// Width conversion core. Do not directly use!
-class WidthConversion (
+class WidthConversionInner (
+    IN_WIDTH    : Int,
+    OUT_WIDTH   : Int
+) extends Module {
+    val GCD = {
+        var a = IN_WIDTH
+        var b = OUT_WIDTH
+        while (a != b) {
+            if (a > b) {
+                a = a - b
+            } else {
+                b = b - a
+            }
+        }
+        a
+    }
+    val LCM = IN_WIDTH * OUT_WIDTH / GCD
+
+    val io = IO(new Bundle {
+        val in  = Flipped(Decoupled(new DataStreamWithCounterLast(IN_WIDTH, log2Down(IN_WIDTH) + 1)))
+        val out = Decoupled(new DataStreamWithCounterLast(OUT_WIDTH, log2Down(OUT_WIDTH) + 1))
+    })
+
+    val upConvert   = Module(new WidthConversionCore(IN_WIDTH=IN_WIDTH, OUT_WIDTH=LCM))
+    val downConvert = Module(new WidthConversionCore(IN_WIDTH=LCM, OUT_WIDTH=OUT_WIDTH))
+
+    upConvert.io.in <> RegSlice(2)(io.in)
+    downConvert.io.in <> RegSlice(2)(upConvert.io.out)
+    io.out <> RegSlice(2)(downConvert.io.out)
+}
+
+// New version of width conversion core. 
+
+class WidthConversionCore (
+    IN_WIDTH    : Int,
+    OUT_WIDTH   : Int
+) extends Module {
+    assert(IN_WIDTH % OUT_WIDTH == 0 || OUT_WIDTH % IN_WIDTH == 0, "Width conversion core: Input width should be divisible by output width or vice versa.")
+
+    val io = IO(new Bundle {
+        val in  = Flipped(Decoupled(new DataStreamWithCounterLast(IN_WIDTH, log2Down(IN_WIDTH) + 1)))
+        val out = Decoupled(new DataStreamWithCounterLast(OUT_WIDTH, log2Down(OUT_WIDTH) + 1))
+    })
+
+    val in  = RegSlice(io.in)
+
+    if (IN_WIDTH == OUT_WIDTH) {
+        // Case 1: Pass through.
+        io.out <> in
+    } else if (IN_WIDTH < OUT_WIDTH) {
+        // Case 2: Scale up.
+        val NUM_SEGMENTS = OUT_WIDTH / IN_WIDTH
+
+        val outCounter  = RegInit(0.U((log2Down(OUT_WIDTH) + 1).W)) 
+        val outDataReg  = RegInit(VecInit(Seq.fill(NUM_SEGMENTS-1)(0.U(IN_WIDTH.W))))
+        val segCounter  = RegInit(0.U(log2Up(NUM_SEGMENTS).W))
+
+        val inLastBeat  = in.bits.last.asBool || (outCounter + IN_WIDTH.U === OUT_WIDTH.U)
+
+        when (in.fire) {
+            when (in.bits.last.asBool) {
+                segCounter  := 0.U
+            }.elsewhen (outCounter < OUT_WIDTH.U) {
+                segCounter  := segCounter + 1.U
+            }.otherwise {
+                segCounter  := 0.U
+            }
+
+            when (inLastBeat) {
+                outCounter  := 0.U
+            }.otherwise {
+                outCounter  := outCounter + IN_WIDTH.U
+            }
+
+            when (!inLastBeat) {
+                outDataReg(segCounter) := in.bits.data
+            }
+        }
+
+        val outData     = Wire(UInt(OUT_WIDTH.W))
+
+        outData := in.bits.data
+        for (i <- 1 until NUM_SEGMENTS) {
+            when (segCounter === i.U) {
+                outData := Cat(in.bits.data, outDataReg.asUInt()(i*IN_WIDTH-1, 0))
+            }
+        }
+
+        in.ready := io.out.ready
+        io.out.bits.data    := outData
+        io.out.bits.counter := outCounter + in.bits.counter
+        io.out.bits.last    := in.bits.last
+        io.out.valid        := in.valid && inLastBeat
+    } else {
+        // Case 3: Scale down.
+        val NUM_SEGMENTS = IN_WIDTH / OUT_WIDTH
+
+        val segCounter  = RegInit(0.U(log2Up(NUM_SEGMENTS).W))
+        val inCounter   = RegInit(0.U((log2Down(IN_WIDTH) + 1).W))
+        val inFirstBeat = (segCounter === 0.U)
+        val inLastBeat  = Mux(segCounter === 0.U, in.bits.counter <= OUT_WIDTH.U, inCounter <= OUT_WIDTH.U)
+
+        when (io.out.fire) {
+            when (io.out.bits.last.asBool) {
+                segCounter  := 0.U
+            }.elsewhen (segCounter < NUM_SEGMENTS.U) {
+                segCounter  := segCounter + 1.U
+            }.otherwise {
+                segCounter  := 0.U
+            }
+
+            when (inFirstBeat) {
+                inCounter   := in.bits.counter - OUT_WIDTH.U
+            }.elsewhen (inLastBeat) {
+                inCounter   := 0.U
+            }.otherwise {
+                inCounter   := inCounter - OUT_WIDTH.U
+            }
+        }
+
+        val outData    = Wire(UInt(OUT_WIDTH.W))
+
+        outData := in.bits.data(OUT_WIDTH-1, 0)
+        for (i <- 1 until NUM_SEGMENTS) {
+            when (segCounter === i.U) {
+                outData := in.bits.data((i+1)*OUT_WIDTH-1, i*OUT_WIDTH)
+            }
+        }
+
+        in.ready := io.out.ready && inLastBeat
+        io.out.bits.data    := outData
+        io.out.bits.counter := Mux(inLastBeat, Mux(inFirstBeat, in.bits.counter, inCounter), OUT_WIDTH.U)
+        io.out.bits.last    := in.bits.last.asBool && inLastBeat
+        io.out.valid        := in.valid
+    }
+}
+
+// Old version.
+
+class WidthConversionInnerAlter (
     IN_WIDTH    : Int,
     OUT_WIDTH   : Int
 ) extends Module {
