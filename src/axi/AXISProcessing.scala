@@ -679,7 +679,7 @@ object genKeepSignal {
         val keep        = Wire(UInt((outLen/8).W))
         keep := -1.S((outLen/8).W).asUInt
 
-        for (i <- 0 until 64) {
+        for (i <- 0 until keepMsb) {
             when (numBitsE(numBitsMsb-1, 3) === i.U && numBitsE(2, 0) === 0.U(3.W)) {
                 val shift   = (keepMsb-i).U(7.W)
                 keep := -1.S((outLen/8).W).asUInt >> shift

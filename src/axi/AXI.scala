@@ -4,6 +4,8 @@ import chisel3._
 import chisel3.util._
 import common.ToAllOnes
 import common.ToZero
+import chisel3.experimental.{annotate,ChiselAnnotation}
+import firrtl.AttributeAnnotation
 
 trait HasAddrLen extends Bundle{
 	val addr		= Output(UInt(64.W))
@@ -12,6 +14,16 @@ trait HasAddrLen extends Bundle{
 
 trait HasLast extends Bundle{
 	val last		= Output(UInt(1.W))
+}
+
+object addAttribute {
+	def apply(signal: Data, name: String) = {
+		annotate(new ChiselAnnotation {
+			override def toFirrtl: AttributeAnnotation = {
+				AttributeAnnotation(signal.toTarget, name)
+			}
+		})
+	}
 }
 
 class AXI_ADDR(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int, LEN_WIDTH:Int)extends Bundle with HasAddrLen{
@@ -26,6 +38,20 @@ class AXI_ADDR(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int, LEN
 	val region					= UInt(4.W)
 	val size					= UInt(3.W)
 	val user					= UInt(USER_WIDTH.W)
+
+	def noc_init()  {
+		ToZero(addr)
+		ToZero(len)
+		ToZero(id)
+		burst		:= 1.U //burst type: 01 (INC), 00 (FIXED)
+		size		:= 5.U
+		ToZero(region)
+		ToZero(lock)
+		ToZero(user)
+		ToZero(prot)
+		ToZero(cache)
+		ToZero(qos)
+	}
 
 	def hbm_init() = {
 		ToZero(addr)
@@ -66,6 +92,13 @@ class AXI_DATA_W(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int)ex
 	val user	= UInt(USER_WIDTH.W)
 	override val last	= UInt(1.W)
 	val strb	= UInt((DATA_WIDTH/8).W)
+
+	def noc_init() = {
+		ToZero(data)
+		ToZero(last)
+		ToZero(user)
+		ToAllOnes(strb)
+	}
 
 	def hbm_init() = {
 		ToZero(data)
@@ -163,6 +196,60 @@ class AXI(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int, LEN_WIDT
 		// b.bits.resp			:= 3.U
 	}
 
+	def mark_intf(intf_name: String) = {
+		// Mark as dontTouch
+		dontTouch(aw)
+		dontTouch(ar)
+		dontTouch(w)
+		dontTouch(r)
+		dontTouch(b)
+		// Add Xilinx interface attributes to AXI signals.
+		addAttribute(aw.bits.addr, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" AWADDR\"")
+		addAttribute(aw.bits.burst, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" AWBURST\"")
+		addAttribute(aw.bits.cache, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" AWCACHE\"")
+		addAttribute(aw.bits.id, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" AWID\"")
+		addAttribute(aw.bits.len, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" AWLEN\"")
+		addAttribute(aw.bits.lock, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" AWLOCK\"")
+		addAttribute(aw.bits.prot, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" AWPROT\"")
+		addAttribute(aw.bits.qos, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" AWQOS\"")
+		addAttribute(aw.bits.region, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" AWREGION\"")
+		addAttribute(aw.bits.size, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" AWSIZE\"")
+		addAttribute(aw.bits.user, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" AWUSER\"")
+		addAttribute(aw.valid, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" AWVALID\"")
+		addAttribute(aw.ready, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" AWREADY\"")
+		addAttribute(ar.bits.addr, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" ARADDR\"")
+		addAttribute(ar.bits.burst, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" ARBURST\"")
+		addAttribute(ar.bits.cache, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" ARCACHE\"")
+		addAttribute(ar.bits.id, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" ARID\"")
+		addAttribute(ar.bits.len, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" ARLEN\"")
+		addAttribute(ar.bits.lock, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" ARLOCK\"")
+		addAttribute(ar.bits.prot, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" ARPROT\"")
+		addAttribute(ar.bits.qos, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" ARQOS\"")
+		addAttribute(ar.bits.region, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" ARREGION\"")
+		addAttribute(ar.bits.size, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" ARSIZE\"")
+		addAttribute(ar.bits.user, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" ARUSER\"")
+		addAttribute(ar.valid, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" ARVALID\"")
+		addAttribute(ar.ready, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" ARREADY\"")
+		addAttribute(r.bits.data, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" RDATA\"")
+		addAttribute(r.bits.id, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" RID\"")
+		addAttribute(r.bits.last, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" RLAST\"")
+		addAttribute(r.bits.resp, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" RRESP\"")
+		addAttribute(r.bits.user, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" RUSER\"")
+		addAttribute(r.valid, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" RVALID\"")
+		addAttribute(r.ready, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" RREADY\"")
+		addAttribute(w.bits.data, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" WDATA\"")
+		addAttribute(w.bits.last, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" WLAST\"")
+		addAttribute(w.bits.strb, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" WSTRB\"")
+		addAttribute(w.bits.user, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" WUSER\"")
+		addAttribute(w.valid, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" WVALID\"")
+		addAttribute(w.ready, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" WREADY\"")
+		addAttribute(b.bits.id, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" BID\"")
+		addAttribute(b.bits.resp, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" BRESP\"")
+		addAttribute(b.bits.user, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" BUSER\"")
+		addAttribute(b.valid, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" BVALID\"")
+		addAttribute(b.ready, "X_INTERFACE_INFO = \"xilinx.com:interface:aximm:1.0 "+intf_name+" BREADY\"")
+	}
+
 	/* User notes:
 	 * 
 	 * hbm_init helps to initialize HBM AXI data bits and remove unused bits.
@@ -188,6 +275,20 @@ class AXI(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int, LEN_WIDT
 		aw.bits.hbm_init()
 		ar.bits.hbm_init()
 		w.bits.hbm_init()
+	}
+
+	// Use this only when you are initializing NMU.
+
+	def noc_init() = {
+		ar.valid 			:= 0.U
+		aw.valid 			:= 0.U 
+		w.valid 			:= 0.U
+		r.ready 			:= 0.U
+		b.ready 			:= 1.U
+
+		aw.bits.noc_init()
+		ar.bits.noc_init()
+		w.bits.noc_init()
 	}
 
 	// Use this only when you are initializing master side of QDMA slave bridge.
