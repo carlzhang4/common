@@ -94,7 +94,7 @@ object AXIRouter {
 
         readFifo.io.in.valid    := inReadAddr.fire
         readFifo.io.in.bits     := inReadAddr.bits.idx
-        inReadAddr.ready  := readFifo.io.in.ready && outReadAddr(io.rdIdx).ready
+        inReadAddr.ready  := readFifo.io.in.ready && outReadAddr(inReadAddr.bits.idx).ready
         for (i <- 0 until n) {
             outReadAddr(i).valid  := readFifo.io.in.ready && inReadAddr.valid && (inReadAddr.bits.idx === i.U)
             outReadAddr(i).bits   := inReadAddr.bits.genBits
