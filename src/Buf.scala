@@ -76,6 +76,26 @@ class IBUFDS_GTE4(
 
 }
 
+/** IBUFDS_GTME5（一般用于 Versal CMAC）, 输入为高速口差分时钟 */
+class IBUFDS_GTME5(
+    REFCLK_EN_TX_PATH:  Int = 0,
+    REFCLK_HROW_CK_SEL: Int = 0,
+    REFCLK_ICNTL_RX:    Int = 0)
+  extends BlackBox(Map(
+    "REFCLK_EN_TX_PATH"  -> REFCLK_EN_TX_PATH,
+    "REFCLK_HROW_CK_SEL" -> REFCLK_HROW_CK_SEL,
+    "REFCLK_ICNTL_RX"    -> REFCLK_ICNTL_RX
+	))
+{
+  val io = IO(new Bundle {
+    val O     = Output(Clock())
+    val ODIV2 = Output(Clock())
+    val CEB   = Input(Bool())//0.U
+    val I     = Input(Clock())//p
+    val IB    = Input(Clock())//n
+  })
+}
+
 class MMCME4_ADV_Wrapper(
     MMCM_DIVCLK_DIVIDE:Int,
     CLKFBOUT_MULT_F:Double,
@@ -205,5 +225,160 @@ class MMCME4_ADV(
       val CLKOUT4 = Output(Clock())
       val CLKOUT5 = Output(Clock())
       val CLKOUT6 = Output(Clock())
+  })
+}
+
+class MMCME5_Wrapper(
+    MMCM_DIVCLK_DIVIDE:Int,
+    CLKFBOUT_MULT_F:Double,
+    MMCM_CLKOUT0_DIVIDE_F:Double,
+    MMCM_CLKOUT1_DIVIDE_F:Double = 2,
+    MMCM_CLKOUT2_DIVIDE_F:Double = 2,
+    MMCM_CLKOUT3_DIVIDE_F:Double = 2,
+    MMCM_CLKOUT4_DIVIDE_F:Double = 2,
+    MMCM_CLKOUT5_DIVIDE_F:Double = 2,
+    MMCM_CLKOUT6_DIVIDE_F:Double = 2,
+    MMCM_CLKIN1_PERIOD:Double,
+)extends RawModule{
+  val io = IO(new Bundle{
+      val CLKIN1    = Input(Clock())
+      val RST       = Input(UInt(1.W))
+
+      val LOCKED	= Output(UInt(1.W))
+      val CLKOUT0 	= Output(Clock())
+      val CLKOUT1 	= Output(Clock())
+      val CLKOUT2 	= Output(Clock())
+      val CLKOUT3 	= Output(Clock())
+      val CLKOUT4 	= Output(Clock())
+      val CLKOUT5 	= Output(Clock())
+      val CLKOUT6 	= Output(Clock())
+  })
+  val mmcm5 = Module(new MMCME5(
+    MMCM_DIVCLK_DIVIDE,
+    CLKFBOUT_MULT_F,
+    MMCM_CLKOUT0_DIVIDE_F,
+    MMCM_CLKOUT1_DIVIDE_F,
+    MMCM_CLKOUT2_DIVIDE_F,
+    MMCM_CLKOUT3_DIVIDE_F,
+    MMCM_CLKOUT4_DIVIDE_F,
+    MMCM_CLKOUT5_DIVIDE_F,
+    MMCM_CLKOUT6_DIVIDE_F,
+    MMCM_CLKIN1_PERIOD,
+    ))
+    mmcm5.io.CLKIN1 := io.CLKIN1
+    mmcm5.io.RST    := io.RST
+    io.LOCKED           := mmcm5.io.LOCKED
+    io.CLKOUT0           := mmcm5.io.CLKOUT0
+    io.CLKOUT1           := mmcm5.io.CLKOUT1
+    io.CLKOUT2           := mmcm5.io.CLKOUT2
+    io.CLKOUT3           := mmcm5.io.CLKOUT3
+    io.CLKOUT4           := mmcm5.io.CLKOUT4
+    io.CLKOUT5           := mmcm5.io.CLKOUT5
+    io.CLKOUT6           := mmcm5.io.CLKOUT6
+
+    mmcm5.io.CLKIN2   := 0.U
+    mmcm5.io.PWRDWN   := 0.U
+    mmcm5.io.CLKINSEL := 1.U
+    mmcm5.io.DADDR    := 0.U
+    mmcm5.io.DEN      := 0.U
+    mmcm5.io.DI       := 0.U
+    mmcm5.io.DWE      := 0.U
+    mmcm5.io.PSCLK    := 0.U
+    mmcm5.io.PSEN     := 0.U
+    mmcm5.io.DCLK     := 0.U
+    mmcm5.io.PSINCDEC := 0.U
+
+
+}
+
+class MMCME5(
+    MMCM_DIVCLK_DIVIDE:Int,
+    CLKFBOUT_MULT_F:Double,
+    MMCM_CLKOUT0_DIVIDE_F:Double,
+    MMCM_CLKOUT1_DIVIDE_F:Double,
+    MMCM_CLKOUT2_DIVIDE_F:Double,
+    MMCM_CLKOUT3_DIVIDE_F:Double,
+    MMCM_CLKOUT4_DIVIDE_F:Double,
+    MMCM_CLKOUT5_DIVIDE_F:Double,
+    MMCM_CLKOUT6_DIVIDE_F:Double,
+    MMCM_CLKIN1_PERIOD:Double,
+
+) extends BlackBox(Map(
+    "BANDWIDTH" -> "OPTIMIZED",
+    "COMPENSATION"            -> "AUTO",
+    "DIVCLK_DIVIDE"           -> MMCM_DIVCLK_DIVIDE,
+    "CLKFBOUT_MULT"           -> CLKFBOUT_MULT_F,
+    "CLKFBOUT_PHASE"          -> 0.00,
+    "CLKOUT0_DIVIDE"   -> MMCM_CLKOUT0_DIVIDE_F,
+    "CLKOUT1_DIVIDE"   -> MMCM_CLKOUT1_DIVIDE_F,
+    "CLKOUT2_DIVIDE"   -> MMCM_CLKOUT2_DIVIDE_F,
+    "CLKOUT3_DIVIDE"   -> MMCM_CLKOUT3_DIVIDE_F,
+    "CLKOUT4_DIVIDE"   -> MMCM_CLKOUT4_DIVIDE_F,
+    "CLKOUT5_DIVIDE"   -> MMCM_CLKOUT5_DIVIDE_F,
+    "CLKOUT6_DIVIDE"   -> MMCM_CLKOUT6_DIVIDE_F,
+    "CLKIN1_PERIOD"    -> MMCM_CLKIN1_PERIOD,
+    "REF_JITTER1"      -> 0.010,
+    
+
+)){
+  val io = IO(new Bundle{
+      val CLKIN1    = Input(Clock())
+      val CLKIN2    = Input(UInt(1.W))
+      val RST       = Input(UInt(1.W))
+      val PWRDWN    = Input(UInt(1.W))
+      val CLKINSEL  = Input(UInt(1.W))
+      val DADDR     = Input(UInt(7.W))
+      val DEN       = Input(UInt(1.W))
+      val DI        = Input(UInt(16.W))
+      val DWE       = Input(UInt(1.W))
+      val PSCLK     = Input(UInt(1.W))
+      val PSEN      = Input(UInt(1.W))
+      val DCLK      = Input(UInt(1.W))
+      val PSINCDEC  = Input(UInt(1.W))
+
+      val LOCKED = Output(UInt(1.W))
+      val CLKOUT0 = Output(Clock())
+      val CLKOUT1 = Output(Clock())
+      val CLKOUT2 = Output(Clock())
+      val CLKOUT3 = Output(Clock())
+      val CLKOUT4 = Output(Clock())
+      val CLKOUT5 = Output(Clock())
+      val CLKOUT6 = Output(Clock())
+  })
+}
+
+/** BUFG_GT for Versal boards, 输入为高速口差分时钟 */
+
+class BUFG_GT extends BlackBox(Map(
+  "SIM_DEVICE" -> "VERSAL_AI_CORE"
+)) {
+  val io = IO(new Bundle{
+    val I         = Input(Clock())   // Buffer
+    val DIV       = Input(UInt(3.W)) // Dynamic divide Value
+    val CLRMASK   = Input(UInt(1.W)) // Clear mask
+    val CLR       = Input(UInt(1.W)) // Asynchronous clear
+    val CEMASK    = Input(UInt(1.W)) // Buffer enable mask
+    val CE        = Input(UInt(1.W)) // Buffer enable
+    val O         = Output(Clock())
+  })
+}
+
+/** MBUFG_GT for Versal boards, 输入为高速口差分时钟，输出为多个时钟，与 GTWiz 搭配使用 */
+
+class MBUFG_GT extends BlackBox(Map(
+    "MODE" -> "PERFORMANCE"
+)) {
+  val io = IO(new Bundle {
+    val I         = Input(Clock())   // Buffer
+    val DIV       = Input(UInt(3.W)) // Dynamic divide Value
+    val CLRMASK   = Input(UInt(1.W)) // Clear mask
+    val CLRB_LEAF = Input(UInt(1.W)) // Active low clear
+    val CLR       = Input(UInt(1.W)) // Asynchronous clear
+    val CEMASK    = Input(UInt(1.W)) // Buffer enable mask
+    val CE        = Input(UInt(1.W)) // Buffer enable
+    val O1        = Output(Clock())
+    val O2        = Output(Clock())
+    val O3        = Output(Clock())
+    val O4        = Output(Clock())
   })
 }

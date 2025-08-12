@@ -310,13 +310,13 @@ class AXIStreamWidthConversion (
 
     val core    = Module(new WidthConversionInner(IN_WIDTH = IN_WIDTH, OUT_WIDTH = OUT_WIDTH))
 
-    core.io.in.bits.counter := parseKeepSignal(in.bits.keep, 512)
+    core.io.in.bits.counter := parseKeepSignal(in.bits.keep, IN_WIDTH)
     core.io.in.bits.data    := in.bits.data
     core.io.in.bits.last    := in.bits.last
     core.io.in.valid        := in.valid
     in.ready                := core.io.in.ready
 
-    io.out.bits.keep        := genKeepSignal(core.io.out.bits.counter, 512)
+    io.out.bits.keep        := genKeepSignal(core.io.out.bits.counter, OUT_WIDTH)
     io.out.bits.data        := core.io.out.bits.data
     io.out.bits.last        := core.io.out.bits.last
     io.out.valid            := core.io.out.valid
@@ -340,13 +340,13 @@ class AXIStreamWidthConversionAlter (
 
     val core    = Module(new WidthConversionInnerAlter(IN_WIDTH = IN_WIDTH, OUT_WIDTH = OUT_WIDTH))
 
-    core.io.in.bits.counter := parseKeepSignal(in.bits.keep, 512)
+    core.io.in.bits.counter := parseKeepSignal(in.bits.keep, IN_WIDTH)
     core.io.in.bits.data    := in.bits.data
     core.io.in.bits.last    := in.bits.last
     core.io.in.valid        := in.valid
     in.ready                := core.io.in.ready
 
-    io.out.bits.keep        := genKeepSignal(core.io.out.bits.counter, 512)
+    io.out.bits.keep        := genKeepSignal(core.io.out.bits.counter, OUT_WIDTH)
     io.out.bits.data        := core.io.out.bits.data
     io.out.bits.last        := core.io.out.bits.last
     io.out.valid            := core.io.out.valid
@@ -681,10 +681,10 @@ object genKeepSignal {
 
         for (i <- 0 until keepMsb) {
             when (numBitsE(numBitsMsb-1, 3) === i.U && numBitsE(2, 0) === 0.U(3.W)) {
-                val shift   = (keepMsb-i).U(7.W)
+                val shift   = (keepMsb-i).U((log2Up(keepMsb)+3).W)
                 keep := -1.S((outLen/8).W).asUInt >> shift
             }.elsewhen(numBitsE(numBitsMsb-1, 3) === i.U && numBitsE(2, 0) =/= 0.U(3.W)) {
-                val shift   = (keepMsb-1-i).U(7.W)
+                val shift   = (keepMsb-1-i).U((log2Up(keepMsb)+3).W)
                 keep := -1.S((outLen/8).W).asUInt >> shift
             }
         }
