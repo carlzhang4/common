@@ -49,7 +49,7 @@ class AXI_ADDR(ADDR_WIDTH:Int, DATA_WIDTH:Int, ID_WIDTH:Int, USER_WIDTH:Int, LEN
 		ToZero(lock)
 		ToZero(user)
 		ToZero(prot)
-		ToZero(cache)
+		cache		:= 2.U // Modifiable, which is necessary for transmitting 512B-width data to NSU512.
 		ToZero(qos)
 	}
 
