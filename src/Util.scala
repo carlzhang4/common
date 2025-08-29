@@ -5,6 +5,7 @@ import chisel3.util._
 import chisel3.experimental.{requireIsChiselType, DataMirror, Direction}
 import chisel3.experimental.{annotate, ChiselAnnotation}
 import firrtl.AttributeAnnotation
+import common.axi._
 
 object ToZero{
 	// def apply[T<:Bundle](x:T):Unit={
@@ -141,5 +142,42 @@ object VivadoMarkDontTouch {
         })
 
         signal
+    }
+}
+
+object RegMarkAsync {
+    def apply(in: Data) = {
+        addAttribute(in, "ASYNC_REG = \"TRUE\"")
+    }
+}
+
+class ResetSync(PIPE_LEN: Int = 4) extends RawModule {
+    val io = IO(new Bundle{
+        val clk      = Input(Clock())
+        val rstIn    = Input(Bool())
+        val rstOut   = Output(Bool())
+    })
+
+    val rstn = (!io.rstIn).asAsyncReset
+    val resetRetime = withClockAndReset(io.clk, rstn) {RegInit(VecInit(Seq.fill(PIPE_LEN)(false.B)))}
+    
+    withClockAndReset(io.clk, rstn) {
+        RegMarkAsync(resetRetime)
+        dontTouch(resetRetime)
+
+        resetRetime(0) := true.B    // Note that reset is active low.
+        for (i <- 1 until PIPE_LEN) {
+            resetRetime(i) := resetRetime(i - 1)
+        }
+        io.rstOut := resetRetime(PIPE_LEN - 1)
+    }
+}
+
+object ResetSync {
+    def apply(clk: Clock, rstIn: Bool, PIPE_LEN: Int = 3): Bool = {
+        val resetSync = Module(new ResetSync(PIPE_LEN))
+        resetSync.io.clk := clk
+        resetSync.io.rstIn := rstIn
+        resetSync.io.rstOut
     }
 }

@@ -310,13 +310,16 @@ class AXIStreamWidthConversion (
 
     val core    = Module(new WidthConversionInner(IN_WIDTH = IN_WIDTH, OUT_WIDTH = OUT_WIDTH))
 
-    core.io.in.bits.counter := parseKeepSignal(in.bits.keep, IN_WIDTH)
+    core.io.in.bits.counter := Cat(parseKeepSignal(in.bits.keep, IN_WIDTH), 0.U(3.W))
     core.io.in.bits.data    := in.bits.data
     core.io.in.bits.last    := in.bits.last
     core.io.in.valid        := in.valid
     in.ready                := core.io.in.ready
 
-    io.out.bits.keep        := genKeepSignal(core.io.out.bits.counter, OUT_WIDTH)
+    io.out.bits.keep        := genKeepSignal(
+        core.io.out.bits.counter(core.io.out.bits.counter.getWidth-1, 3), 
+        OUT_WIDTH
+    )
     io.out.bits.data        := core.io.out.bits.data
     io.out.bits.last        := core.io.out.bits.last
     io.out.valid            := core.io.out.valid
