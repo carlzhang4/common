@@ -79,15 +79,23 @@ object XArbiter{
 
 object SerialArbiter{
 	def apply[T<:HasLast](num:Int)(gen:T, n:Int) = {
-		Seq.fill(num)(Module(new SerialArbiter(gen,n)))
+		Seq.fill(num)(Module(new SerialArbiter(gen,n,false)))
+	}
+	def apply[T<:HasLast](num:Int)(gen:T, n:Int, exportIdx:Boolean=false) = {
+		Seq.fill(num)(Module(new SerialArbiter(gen,n,exportIdx)))
 	}
 	def apply[T<:HasLast](gen:T, n:Int) = {
-		Module(new SerialArbiter(gen,n))
+		Module(new SerialArbiter(gen,n,false))
 	}
-	class SerialArbiter[T<:HasLast](val gen:T, val n:Int) extends Module{
+	def apply[T<:HasLast](gen:T, n:Int, exportIdx:Boolean) = {
+		Module(new SerialArbiter(gen,n,exportIdx))
+	}
+	
+	class SerialArbiter[T<:HasLast](val gen:T, val n:Int, exportIdx:Boolean=false) extends Module{
 		val io = IO(new Bundle{
 			val in = Vec(n, Flipped(Decoupled(gen)))
 			val out = Decoupled(gen)
+			val idx = if (exportIdx) {Some(Valid(UInt(log2Up(n).W)))} else None
 		})
 
 		val in	= {
@@ -130,6 +138,12 @@ object SerialArbiter{
 			last_idx		:= idx
 		}
 		io.out	<> RegSlice(out)
+
+		// Export index
+		if (exportIdx) {
+			io.idx.get.valid	:= out.fire && is_head.asBool
+			io.idx.get.bits		:= grant_index
+		}
 	}
 }
 
