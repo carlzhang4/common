@@ -441,6 +441,95 @@ object DSPFP32Add {
     }
 }
 
+// Helper: instantiate a DSPFP32 configured for FP32 accumulate.
+// FPA_OUT = P + A * 1.0 (accumulate: adds input `a` to the running sum in P register).
+// B is hardwired to 1.0 (0x3F800000). Input `a` goes to A port.
+// FPOPMODE = 0100001: Z=P(10), X=FPM(01) → FPA = P + FPM = P + A*1.0.
+// Latency = AREG(1) + FPMPIPEREG(1) + FPA_PREG(1) = 3 cycles (initial).
+// After the pipeline is primed, one accumulation per cycle.
+// FPA_PREG=1 is required for P feedback.
+// `last` zeroes the P register (via RSTFPA) to start a new accumulation.
+object DSPFP32Acc {
+    val LATENCY = 3  // AREG(1) + FPMPIPEREG(1) + FPA_PREG(1)
+    def apply(clock: Clock, a: UInt, en: Bool, last: Bool = false.B, ce: Bool = true.B): (UInt, UInt) = {
+
+        val p0sel   = Mux(en, "b01".U(2.W), "b00".U(2.W))
+        val p1sel   = Mux(RegNext(last), "b000".U(3.W), "b100".U(3.W))
+
+        val dsp = Module(new DSPFP32(
+            A_FPTYPE    = "B32",
+            B_D_FPTYPE  = "B32",
+            A_INPUT     = "DIRECT",
+            B_INPUT     = "DIRECT",
+            USE_MULT    = "MULTIPLY",
+            PCOUTSEL    = "FPA",
+            AREG        = 1,
+            ACASCREG    = 1,
+            FPBREG      = 1,
+            FPCREG      = 0,       // C port unused in accumulate mode
+            FPDREG      = 0,
+            FPMPIPEREG  = 1,
+            FPM_PREG    = 0,       // No extra register on FPM; it feeds directly into FPA
+            FPA_PREG    = 1,       // Output register on FPA (required for P feedback)
+            FPOPMREG    = 2,       // pipeline is needed
+            INMODEREG   = 0,
+            RESET_MODE  = "SYNC"
+        ))
+        dsp.io.CLK := clock
+
+        // Input `a` goes to A port (will be multiplied by 1.0)
+        dsp.io.A_SIGN := a(31)
+        dsp.io.A_EXP  := a(30, 23)
+        dsp.io.A_MAN  := a(22, 0)
+        // B is hardwired to 1.0f = 0x3F800000 (sign=0, exp=0x7F, man=0)
+        dsp.io.B_SIGN := false.B
+        dsp.io.B_EXP  := "h7F".U(8.W)
+        dsp.io.B_MAN  := 0.U(23.W)
+        // C port unused (Z mux selects P feedback, not C)
+        dsp.io.C      := 0.U
+        // Unused D input
+        dsp.io.D_SIGN := false.B
+        dsp.io.D_EXP  := 0.U
+        dsp.io.D_MAN  := 0.U
+        // Control: FPINMODE=1 (select B), FPOPMODE=0100001 → FPA = P + FPM
+        //   Z mux = 10 (P feedback), X mux = 01 (FPM)
+        dsp.io.FPINMODE := true.B
+        dsp.io.FPOPMODE := Cat("b00".U(2.W), p1sel, p0sel)
+        // Cascade inputs (unused)
+        dsp.io.ACIN_SIGN := false.B
+        dsp.io.ACIN_EXP  := 0.U
+        dsp.io.ACIN_MAN  := 0.U
+        dsp.io.BCIN_SIGN := false.B
+        dsp.io.BCIN_EXP  := 0.U
+        dsp.io.BCIN_MAN  := 0.U
+        dsp.io.PCIN      := 0.U
+        // Clock enables
+        dsp.io.CEA1       := ce
+        dsp.io.CEA2       := ce
+        dsp.io.CEB        := ce
+        dsp.io.CEC        := ce
+        dsp.io.CED        := ce
+        dsp.io.CEFPA      := ce
+        dsp.io.CEFPINMODE := ce
+        dsp.io.CEFPM      := ce
+        dsp.io.CEFPMPIPE  := ce
+        dsp.io.CEFPOPMODE := ce
+        // Resets: RSTFPA driven by last to clear accumulator
+        dsp.io.ASYNC_RST   := false.B
+        dsp.io.RSTA        := false.B
+        dsp.io.RSTB        := false.B
+        dsp.io.RSTC        := false.B
+        dsp.io.RSTD        := false.B
+        dsp.io.RSTFPA      := false.B
+        dsp.io.RSTFPINMODE := false.B
+        dsp.io.RSTFPM      := false.B
+        dsp.io.RSTFPMPIPE  := false.B
+        dsp.io.RSTFPOPMODE := false.B
+
+        (dsp.io.FPA_OUT, dsp.io.PCOUT)
+    }
+}
+
 // Helper: instantiate a DSPFP32 configured for FP16 add.
 // Uses B16 mode for A and B inputs. Input `a` (FP16) goes to A port,
 // B is hardwired to FP16 1.0 (0x3C00), so FPM = A * 1.0.
