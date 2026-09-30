@@ -169,7 +169,10 @@ class ResetSync(PIPE_LEN: Int = 4) extends RawModule {
         for (i <- 1 until PIPE_LEN) {
             resetRetime(i) := resetRetime(i - 1)
         }
-        io.rstOut := resetRetime(PIPE_LEN - 1)
+		
+		val distributed = RegInit(false.B)
+		distributed := resetRetime(PIPE_LEN - 1)
+		io.rstOut := distributed
     }
 }
 
