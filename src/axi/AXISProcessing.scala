@@ -418,13 +418,13 @@ class WidthConversionCore (
         val out = Decoupled(new DataStreamWithCounterLast(OUT_WIDTH, log2Down(OUT_WIDTH) + 1))
     })
 
-    val in  = RegSlice(io.in)
-
     if (IN_WIDTH == OUT_WIDTH) {
         // Case 1: Pass through.
+        val in = RegSlice(io.in)
         io.out <> in
     } else if (IN_WIDTH < OUT_WIDTH) {
         // Case 2: Scale up.
+        val in = RegSlice(io.in)
         val NUM_SEGMENTS = OUT_WIDTH / IN_WIDTH
 
         val outCounter  = RegInit(0.U((log2Down(OUT_WIDTH) + 1).W)) 
@@ -434,12 +434,12 @@ class WidthConversionCore (
         val inLastBeat  = in.bits.last.asBool || (outCounter + IN_WIDTH.U === OUT_WIDTH.U)
 
         when (in.fire) {
-            when (in.bits.last.asBool) {
+            // Start a new assembly on every output word, not only packet TLAST.
+            // Non-power-of-two ratios cannot rely on index overflow to wrap.
+            when (inLastBeat) {
                 segCounter  := 0.U
-            }.elsewhen (outCounter < OUT_WIDTH.U) {
-                segCounter  := segCounter + 1.U
             }.otherwise {
-                segCounter  := 0.U
+                segCounter  := segCounter + 1.U
             }
 
             when (inLastBeat) {
@@ -468,45 +468,44 @@ class WidthConversionCore (
         io.out.bits.last    := in.bits.last
         io.out.valid        := in.valid && inLastBeat
     } else {
-        // Case 3: Scale down.
+        // Case 3: Scale down. Timing optimized by GPT-6 Astra.
         val NUM_SEGMENTS = IN_WIDTH / OUT_WIDTH
-
-        val segCounter  = RegInit(0.U(log2Up(NUM_SEGMENTS).W))
-        val inCounter   = RegInit(0.U((log2Down(IN_WIDTH) + 1).W))
-        val inFirstBeat = (segCounter === 0.U)
-        val inLastBeat  = Mux(segCounter === 0.U, in.bits.counter <= OUT_WIDTH.U, inCounter <= OUT_WIDTH.U)
-
-        when (io.out.fire) {
-            when (io.out.bits.last.asBool) {
-                segCounter  := 0.U
-            }.elsewhen (segCounter < NUM_SEGMENTS.U) {
-                segCounter  := segCounter + 1.U
-            }.otherwise {
-                segCounter  := 0.U
-            }
-
-            when (inFirstBeat) {
-                inCounter   := in.bits.counter - OUT_WIDTH.U
-            }.elsewhen (inLastBeat) {
-                inCounter   := 0.U
-            }.otherwise {
-                inCounter   := inCounter - OUT_WIDTH.U
-            }
+        class DownBeat extends Bundle {
+            val payload = new DataStreamWithCounterLast(IN_WIDTH, log2Down(IN_WIDTH) + 1)
+            val endAt = Vec(NUM_SEGMENTS, Bool())
+            val tailBits = UInt((log2Down(OUT_WIDTH) + 1).W)
         }
 
-        val outData    = Wire(UInt(OUT_WIDTH.W))
-
-        outData := in.bits.data(OUT_WIDTH-1, 0)
-        for (i <- 1 until NUM_SEGMENTS) {
-            when (segCounter === i.U) {
-                outData := in.bits.data((i+1)*OUT_WIDTH-1, i*OUT_WIDTH)
+        // Decode before the input slice, keeping metadata aligned under stalls.
+        // The read/CE feedback uses a registered end flag, not a length compare.
+        val prepared = Wire(Decoupled(new DownBeat))
+        prepared.valid := io.in.valid
+        io.in.ready := prepared.ready
+        prepared.bits.payload := io.in.bits
+        prepared.bits.tailBits := 0.U
+        for (i <- 0 until NUM_SEGMENTS) {
+            prepared.bits.endAt(i) := io.in.bits.counter <= ((i + 1) * OUT_WIDTH).U
+            when(io.in.bits.counter > (i * OUT_WIDTH).U &&
+                 io.in.bits.counter <= ((i + 1) * OUT_WIDTH).U) {
+                prepared.bits.tailBits := io.in.bits.counter - (i * OUT_WIDTH).U
             }
+        }
+        val in = RegSlice(prepared)
+        val segCounter = RegInit(0.U(log2Up(NUM_SEGMENTS).W))
+        val inLastBeat = in.bits.endAt(segCounter)
+        val pieces = VecInit((0 until NUM_SEGMENTS).map { i =>
+            in.bits.payload.data((i + 1) * OUT_WIDTH - 1, i * OUT_WIDTH)
+        })
+
+        when(io.out.fire) {
+            // Restart at every consumed input word, including non-power-of-two ratios.
+            segCounter := Mux(inLastBeat, 0.U, segCounter + 1.U)
         }
 
         in.ready := io.out.ready && inLastBeat
-        io.out.bits.data    := outData
-        io.out.bits.counter := Mux(inLastBeat, Mux(inFirstBeat, in.bits.counter, inCounter), OUT_WIDTH.U)
-        io.out.bits.last    := in.bits.last.asBool && inLastBeat
+        io.out.bits.data    := pieces(segCounter)
+        io.out.bits.counter := Mux(inLastBeat, in.bits.tailBits, OUT_WIDTH.U)
+        io.out.bits.last    := in.bits.payload.last.asBool && inLastBeat
         io.out.valid        := in.valid
     }
 }
