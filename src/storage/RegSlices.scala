@@ -3,6 +3,7 @@ import chisel3._
 import chisel3.util._
 import chisel3.experimental.{DataMirror, Direction, requireIsChiselType}
 import common.axi._
+import common.VivadoMarkDontTouch
 
 object AXIRegSlice{
 	def apply(stage: Int)(upStream: AXI) = {
@@ -160,20 +161,12 @@ class RegSlice[T<:Data](gen : T, val bankWidth: Int = 64) extends Module{
 			// The last bank contains only the remaining payload bits.
 			val lo = i * bankWidth
 			val hi = (lo.toLong + bankWidth).min(width.toLong).toInt - 1
-			val fwdValid = RegInit(false.B).suggestName(s"bank_${i}_fwd_valid")
-			val bwdReady = RegInit(true.B).suggestName(s"bank_${i}_bwd_ready")
+			val fwdValid = VivadoMarkDontTouch(
+				RegInit(false.B).suggestName(s"bank_${i}_fwd_valid"))
+			val bwdReady = VivadoMarkDontTouch(
+				RegInit(true.B).suggestName(s"bank_${i}_bwd_ready"))
 			val fwdData = Reg(UInt((hi - lo + 1).W)).suggestName(s"bank_${i}_fwd_data")
 			val bwdData = Reg(UInt((hi - lo + 1).W)).suggestName(s"bank_${i}_bwd_data")
-
-			// Preserve only the local control copies, not the payload/logic cone.
-			// dontTouch protects FIRRTL; the attribute protects Vivado synthesis.
-			for (control <- Seq(fwdValid, bwdReady)) {
-				dontTouch(control)
-				chisel3.experimental.annotate(new chisel3.experimental.ChiselAnnotation {
-					override def toFirrtl = firrtl.AttributeAnnotation(
-						control.toTarget, "DONT_TOUCH = \"TRUE\"")
-				})
-			}
 
 			val fwdReady = !fwdValid || io.downStream.ready
 			val selectedValid = !bwdReady || io.upStream.valid
